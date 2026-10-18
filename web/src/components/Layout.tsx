@@ -5,16 +5,37 @@ import { api } from '../api';
 import { useAuth } from '../lib/auth';
 import { Avatar } from './ui';
 
+export type Theme = 'light' | 'dark' | 'system';
+
+export function currentTheme(): Theme {
+  const t = document.documentElement.dataset.theme;
+  return t === 'dark' ? 'dark' : t === 'light' ? 'light' : 'system';
+}
+
+export function applyTheme(t: Theme) {
+  if (t === 'system') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('hsl-theme-v2', t); } catch { /* ignore */ }
+  window.dispatchEvent(new Event('hsl:theme'));
+}
+
+export function useTheme(): Theme {
+  const [theme, setTheme] = useState<Theme>(currentTheme);
+  useEffect(() => {
+    const on = () => setTheme(currentTheme());
+    window.addEventListener('hsl:theme', on);
+    return () => window.removeEventListener('hsl:theme', on);
+  }, []);
+  return theme;
+}
+
 function ThemeToggle() {
-  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? 'auto');
-  const next = theme === 'auto' ? 'dark' : theme === 'dark' ? 'light' : 'auto';
+  const theme = useTheme();
+  const dark = theme === 'dark';
   return (
-    <button className="btn ghost sm icon" title={`Theme: ${theme} (click for ${next})`} onClick={() => {
-      if (next === 'auto') delete document.documentElement.dataset.theme;
-      else document.documentElement.dataset.theme = next;
-      try { localStorage.setItem('hsl-theme', next); } catch { /* ignore */ }
-      setTheme(next);
-    }}>{theme === 'dark' ? '☾' : theme === 'light' ? '☀' : '◐'}</button>
+    <button className="btn ghost sm" title={dark ? 'Switch to light mode' : 'Switch to dark mode'} onClick={() => applyTheme(dark ? 'light' : 'dark')}>
+      {dark ? '☾ Dark' : theme === 'light' ? '☀ Light' : '◐ System'}
+    </button>
   );
 }
 

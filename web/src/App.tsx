@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
 import Layout from './components/Layout';
 import { Spinner } from './components/ui';
 import { useAuth } from './lib/auth';
@@ -13,9 +13,17 @@ import Activity from './pages/project/Activity';
 import BoardPage from './pages/project/Board';
 import ProjectLayout from './pages/project/ProjectLayout';
 import Settings from './pages/project/Settings';
+import Requests from './pages/project/Requests';
 import Summary from './pages/project/Summary';
 import Updates from './pages/project/Updates';
 import Projects from './pages/Projects';
+
+/** Signed in while on /login: continue to the page the user was heading to. */
+function AfterLogin() {
+  const [sp] = useSearchParams();
+  const next = sp.get('next');
+  return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : '/'} replace />;
+}
 
 export default function App() {
   const { me, loading } = useAuth();
@@ -28,7 +36,7 @@ export default function App() {
   if (me.must_change_password) return <ChangePassword forced />;
   return (
     <Routes>
-      <Route path="/login" element={<Navigate to="/" replace />} />
+      <Route path="/login" element={<AfterLogin />} />
       <Route element={<Layout />}>
         <Route index element={<Projects />} />
         <Route path="account" element={<Account />} />
@@ -39,6 +47,7 @@ export default function App() {
         <Route path="p/:key" element={<ProjectLayout />}>
           <Route index element={<Summary />} />
           <Route path="b/:board" element={<BoardPage />} />
+          <Route path="requests" element={<Requests />} />
           <Route path="updates" element={<Updates />} />
           <Route path="activity" element={<Activity />} />
           <Route path="settings" element={<Settings />} />

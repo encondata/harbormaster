@@ -13,6 +13,8 @@ import adminRoutes from './routes/admin.js';
 import authRoutes from './routes/auth.js';
 import cardRoutes from './routes/cards.js';
 import projectRoutes from './routes/projects.js';
+import requestRoutes from './routes/requests.js';
+import { startScheduler } from './scheduler.js';
 import { ensureBucket, storageHealthy } from './storage.js';
 
 const trustHops = Number(process.env.TRUST_PROXY_HOPS ?? 2);
@@ -74,6 +76,7 @@ await app.register(authRoutes);
 await app.register(adminRoutes);
 await app.register(projectRoutes);
 await app.register(cardRoutes);
+await app.register(requestRoutes);
 await app.register(mcpRoutes);
 
 const log = (m: string) => app.log.info(m);
@@ -82,10 +85,12 @@ await ensureBucket(log);
 await bootstrap(log);
 
 await app.listen({ port: config.port, host: '0.0.0.0' });
+const scheduler = startScheduler(log);
 
 for (const sig of ['SIGTERM', 'SIGINT'] as const) {
   process.on(sig, async () => {
     app.log.info(`${sig} received, shutting down`);
+    clearInterval(scheduler);
     await app.close().catch(() => {});
     await pool.end().catch(() => {});
     process.exit(0);

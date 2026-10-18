@@ -39,6 +39,11 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       SEED_SHEET_URL: ${SEED_SHEET_URL:-}
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-2}
+      TIMEZONE: ${TIMEZONE:-UTC}
+      GOOGLE_SERVICE_ACCOUNT_FILE: /app/secrets/google-service-account.json
+    volumes:
+      # Optional Google service account key for the daily sheet export (see docs/SHEET-EXPORT.md).
+      - ./secrets:/app/secrets:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 10s

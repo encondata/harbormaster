@@ -40,6 +40,9 @@ Any MCP client that supports Streamable HTTP with a custom header works the same
 | `list_updates` | Recent weekly progress updates. |
 | `log_progress` | Append bullets (and optionally hours) to this week's update. |
 | `save_update` | Write or replace a whole update by title. |
+| `list_requests` | Feature requests on a project (open by default), most voted first. |
+| `create_request` | File a feature request, optionally naming who asked (`requested_for`). |
+| `triage_request` | Review, accept (creates a linked card), decline, mark duplicate or reopen a request. |
 
 Cards are referenced by key, e.g. `SS-42`. Moving a card is how its status changes; on the
 Feature Parity board the columns are the V3 statuses (Not built, Partial, Pending Testing,

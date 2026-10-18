@@ -1,8 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, type Board, type Column, type FieldDef, type Project, type Role } from '../../api';
 import { Avatar, Confirm, ErrorBox, Modal, useToast } from '../../components/ui';
-import { COLORS, colorVar } from '../../lib/format';
+import { COLORS, colorVar, dateTime } from '../../lib/format';
 import { canDo } from '../../lib/project';
 import { useProjectCtx } from './ProjectLayout';
 
@@ -302,6 +302,97 @@ function Import({ project }: { project: Project }) {
   );
 }
 
+type ExportSettings = {
+  spreadsheet_id: string | null; url: string | null; enabled: boolean; hour: number; timezone: string;
+  last_run_at: string | null; last_status: string | null; last_error: string | null; service_account_email: string | null;
+};
+
+function SheetExport({ project }: { project: Project }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const key = ['sheet-export', project.key];
+  const q = useQuery({ queryKey: key, queryFn: () => api.get<ExportSettings>(`/api/projects/${project.key}/sheet-export`) });
+  const [sheet, setSheet] = useState('');
+  const [busy, setBusy] = useState<'' | 'preview' | 'export'>('');
+  const [err, setErr] = useState<unknown>(null);
+  const [preview, setPreview] = useState<{ dry_run: boolean; tabs: { title: string; rows: number }[] } | null>(null);
+  useEffect(() => setSheet(q.data?.url ?? ''), [q.data?.url]);
+  const s = q.data;
+  const save = async (body: object, msg?: string) => {
+    setErr(null);
+    try {
+      qc.setQueryData(key, await api.put<ExportSettings>(`/api/projects/${project.key}/sheet-export`, body));
+      if (msg) toast(msg);
+    } catch (e) {
+      setErr(e);
+    }
+  };
+  const run = async (dry: boolean) => {
+    setBusy(dry ? 'preview' : 'export'); setErr(null); setPreview(null);
+    try {
+      setPreview(await api.post(`/api/projects/${project.key}/sheet-export/run`, { dry_run: dry }));
+      if (!dry) toast('Exported to the Google Sheet');
+    } catch (e) {
+      setErr(e);
+    } finally {
+      setBusy('');
+      qc.invalidateQueries({ queryKey: key });
+    }
+  };
+  return (
+    <div className="card-box">
+      <div className="hd"><h2 className="grow">Daily Google Sheet export</h2>{s?.enabled ? <span className="badge ok">On</span> : <span className="badge">Off</span>}</div>
+      <div className="bd stack-sm">
+        <div className="muted small">
+          Once a day, copies this project into a Google Sheet: a Summary tab, one tab per board, Weekly Summary and Requests.
+          Those tabs are overwritten each time; other tabs in the sheet are left alone. Use a separate sheet from the one you sync from.
+        </div>
+        {!s ? <div className="faint small">Loading…</div> : (
+          <>
+            {s.service_account_email ? (
+              <div className="small">
+                Share the sheet with <span className="mono" style={{ userSelect: 'all' }}>{s.service_account_email}</span> as an <b>Editor</b>.{' '}
+                <button className="btn ghost sm" onClick={() => { navigator.clipboard?.writeText(s.service_account_email!).then(() => toast('Email copied'), () => {}); }}>Copy</button>
+              </div>
+            ) : (
+              <div className="warn-box">The server has no Google service account yet, so exports can't write to Google. Follow docs/SHEET-EXPORT.md in the repository, then reload this page. Preview works without it.</div>
+            )}
+            <label className="field">Google Sheet link
+              <div className="row">
+                <input className="input" placeholder="https://docs.google.com/spreadsheets/d/…/edit" value={sheet} onChange={(e) => setSheet(e.target.value)} />
+                <button className="btn" disabled={sheet === (s.url ?? '')} onClick={() => save({ sheet: sheet.trim() || null }, sheet.trim() ? 'Sheet saved' : 'Sheet removed')}>Save</button>
+              </div>
+            </label>
+            {s.url && <a className="small" href={s.url} target="_blank" rel="noreferrer">Open the sheet ↗</a>}
+            <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
+              <label className="check"><input type="checkbox" checked={s.enabled} onChange={(e) => save({ enabled: e.target.checked }, e.target.checked ? 'Daily export turned on' : 'Daily export turned off')} /> Export every day at</label>
+              <select className="input sm" style={{ width: 'auto' }} value={s.hour} onChange={(e) => save({ hour: Number(e.target.value) })} aria-label="Hour">
+                {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}
+              </select>
+              <span className="faint small">{s.timezone}</span>
+            </div>
+            <div className="btn-row">
+              <button className="btn" disabled={!!busy} onClick={() => run(true)}>{busy === 'preview' ? 'Building preview…' : 'Preview'}</button>
+              <button className="btn primary" disabled={!!busy || !s.spreadsheet_id || !s.service_account_email} onClick={() => run(false)}>{busy === 'export' ? 'Exporting…' : 'Export now'}</button>
+            </div>
+            {s.last_run_at && (
+              s.last_status === 'ok'
+                ? <div className="ok-box">Last export {dateTime(s.last_run_at)} succeeded.</div>
+                : <div className="error-box">Last export {dateTime(s.last_run_at)} failed: {s.last_error}</div>
+            )}
+            {preview && (
+              <div className={preview.dry_run ? 'warn-box' : 'ok-box'}>
+                <b>{preview.dry_run ? 'Preview: nothing was written.' : 'Export complete.'}</b> Tabs: {preview.tabs.map((t) => `${t.title} (${t.rows} rows)`).join(', ')}
+              </div>
+            )}
+            <ErrorBox error={err} />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Settings() {
   const { project } = useProjectCtx();
   if (!canDo(project, 'project.manage')) return <div className="page"><ErrorBox error="You need the Owner role to change project settings." /></div>;
@@ -313,6 +404,7 @@ export default function Settings() {
         <Boards project={project} />
         <Areas project={project} />
         {canDo(project, 'project.import') && <Import project={project} />}
+        <SheetExport project={project} />
       </div>
     </div>
   );

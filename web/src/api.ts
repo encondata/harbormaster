@@ -52,7 +52,7 @@ export type Board = { id: string; key: string; name: string; description: string
 
 export type Area = { id: string; name: string; sort: number; priority: string; expected_date: string; notes: string; updated_at: string };
 
-export type Project = { id: string; key: string; name: string; description: string; archived_at: string | null; permissions: string[]; boards: Board[]; areas: Area[] };
+export type Project = { id: string; key: string; name: string; description: string; archived_at: string | null; permissions: string[]; boards: Board[]; areas: Area[]; requests: { new: number; open: number } };
 
 export type ProjectListItem = { id: string; key: string; name: string; description: string; archived_at: string | null; my_role: string | null; card_count: number; member_count: number };
 
@@ -87,4 +87,14 @@ export type AdminUser = {
   id: string; email: string; name: string; kind: 'human' | 'service'; is_active: boolean; must_change_password: boolean; last_login_at: string | null; created_at: string;
   global_roles: { id: string; name: string }[]; projects: { project_id: string; project_key: string; project_name: string; role_id: string; role_name: string }[];
   active_tokens: number; active_sessions: number;
+};
+
+export type RequestStatus = 'new' | 'reviewing' | 'accepted' | 'declined' | 'duplicate';
+
+export type FeatureRequest = {
+  id: string; project_id: string; key: string; number: number; title: string; description: string; status: RequestStatus;
+  area_id: string | null; area_name: string | null; requested_by: string | null; requested_by_name: string | null; requested_by_kind: string | null;
+  requested_for: string; card_id: string | null; card_key: string | null; card_title: string | null; card_column: string | null; card_board_key: string | null;
+  duplicate_of: string | null; duplicate_key: string | null; duplicate_title: string | null; decision_note: string;
+  decided_by_name: string | null; decided_at: string | null; created_at: string; updated_at: string; votes: number; comment_count: number; voted?: boolean;
 };

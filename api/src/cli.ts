@@ -1,15 +1,24 @@
 // Server-side maintenance commands, run inside the api container:
 //   docker compose exec api node dist/cli.js reset-password <email> [new-password]
 //   docker compose exec api node dist/cli.js make-admin <email>
+//   docker compose exec api node dist/cli.js export-sheet <PROJECT-KEY> [--dry-run]
 import { audit } from './audit.js';
 import { hashPassword, randomToken, systemCtx, validatePassword } from './auth.js';
 import { one, pool, tx } from './db.js';
+import { resolveProject } from './services/common.js';
+import { runExport } from './services/sheet-export.js';
 
 const [cmd, email, password] = process.argv.slice(2);
 
 async function main() {
+  if (cmd === 'export-sheet' && email) {
+    const project = await resolveProject(email);
+    const r = await runExport(systemCtx(), project.id, { dryRun: process.argv.includes('--dry-run') });
+    console.log(`${r.dry_run ? 'Dry run (nothing written)' : 'Exported'} ${project.key}: ${r.tabs.map((t) => `${t.title} (${t.rows} rows)`).join(', ')}`);
+    return;
+  }
   if (!cmd || !email) {
-    console.log('Usage:\n  node dist/cli.js reset-password <email> [new-password]\n  node dist/cli.js make-admin <email>');
+    console.log('Usage:\n  node dist/cli.js reset-password <email> [new-password]\n  node dist/cli.js make-admin <email>\n  node dist/cli.js export-sheet <PROJECT-KEY> [--dry-run]');
     process.exit(1);
   }
   const user = await one<{ id: string; name: string; kind: string }>(`select id, name, kind from users where lower(email) = lower($1)`, [email]);

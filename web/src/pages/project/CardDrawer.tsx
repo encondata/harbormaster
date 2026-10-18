@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { api, PRIORITIES, type Card, type FieldDef, type Project } from '../../api';
 import { Avatar, Confirm, ErrorBox, Spinner, useToast } from '../../components/ui';
 import { bytes, dateTime, timeAgo } from '../../lib/format';
@@ -10,6 +11,7 @@ type CardDetail = Card & {
   comments: { id: string; body: string; created_at: string; author_id: string | null; author_name: string | null; author_kind: string | null }[];
   attachments: { id: string; filename: string; content_type: string; size_bytes: number; created_at: string; uploaded_by_name: string | null }[];
   history: { id: number; at: string; actor_name: string; via: string; action: string; summary: string; changes: Record<string, { from: unknown; to: unknown }> | null }[];
+  request: { id: string; key: string; title: string } | null;
 };
 type Member = { id: string; name: string; kind: string };
 
@@ -149,6 +151,11 @@ export default function CardDrawer({ cardKey, project, onClose }: { cardKey: str
               <div className="faint small" style={{ margin: '4px 0 16px' }}>
                 Created {timeAgo(card.created_at)}{card.created_by_name ? ` by ${card.created_by_name}` : ''} · updated {timeAgo(card.updated_at)}{card.updated_by_name ? ` by ${card.updated_by_name}` : ''}
               </div>
+              {card.request && (
+                <div className="small" style={{ marginBottom: 8 }}>
+                  From feature request <Link to={`/p/${project.key}/requests?request=${card.request.key}`}><b>{card.request.key}</b> {card.request.title}</Link>
+                </div>
+              )}
               <ErrorBox error={err} />
               <div className="props" style={{ marginTop: 8 }}>
                 <Prop label="Status">

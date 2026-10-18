@@ -104,8 +104,13 @@ export async function getProject(ctx: Ctx, projectId: string) {
     [projectId],
   );
   const areas = await q(`select id, name, sort, priority, expected_date, notes, updated_at from areas where project_id = $1 order by sort, name`, [projectId]);
+  const requests = (await one<{ new: number; open: number }>(
+    `select count(*) filter (where status = 'new') as new, count(*) filter (where status in ('new', 'reviewing')) as open from feature_requests where project_id = $1`,
+    [projectId],
+  ))!;
   return {
     ...p,
+    requests,
     permissions: [...perms],
     boards: boards.map((b) => ({ ...b, columns: columns.filter((c) => c.board_id === b.id) })),
     areas,

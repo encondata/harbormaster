@@ -11,6 +11,7 @@ import {
   addComment, cardHistory, cardInput, cardPatch, createCard, deleteComment, getCardForCtx, listCards, listComments, moveCard, setArchived, updateCard,
 } from '../services/cards.js';
 import { resolveArea, resolveBoard, resolveProject } from '../services/common.js';
+import { requestForCard } from '../services/requests.js';
 import { deleteObject, getObject, putObject } from '../storage.js';
 import { parse } from '../validate.js';
 
@@ -46,12 +47,13 @@ export default async function cardRoutes(app: FastifyInstance) {
   app.get('/api/cards/:card', async (req) => {
     const ctx = requireUser(req);
     const card = await getCardForCtx(ctx, (req.params as any).card);
-    const [comments, attachments, history] = await Promise.all([
+    const [comments, attachments, history, request] = await Promise.all([
       listComments(card.id),
       q(`select a.id, a.filename, a.content_type, a.size_bytes, a.created_at, u.name as uploaded_by_name from attachments a left join users u on u.id = a.uploaded_by where a.card_id = $1 order by a.created_at`, [card.id]),
       cardHistory(card.id),
+      requestForCard(card.id),
     ]);
-    return { ...card, comments, attachments, history };
+    return { ...card, comments, attachments, history, request: request ?? null };
   });
 
   app.patch('/api/cards/:card', async (req) => {

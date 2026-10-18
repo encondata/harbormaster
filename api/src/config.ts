@@ -26,4 +26,8 @@ export const config = {
     password: process.env.ADMIN_PASSWORD ?? '',
   },
   sessionDays: 14,
+  // Google service account key (JSON) used to write exported sheets. Optional.
+  googleServiceAccountFile: env('GOOGLE_SERVICE_ACCOUNT_FILE', '/app/secrets/google-service-account.json'),
+  // Time zone for scheduled jobs such as the daily sheet export.
+  timezone: env('TIMEZONE', 'UTC'),
 };

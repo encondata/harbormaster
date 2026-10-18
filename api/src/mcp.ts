@@ -10,6 +10,7 @@ import { HttpError, unauthorized } from './errors.js';
 import { addComment, cardHistory, createCard, getCardForCtx, listCards, listComments, moveCard, PRIORITIES, setArchived, updateCard, type Card } from './services/cards.js';
 import { resolveArea, resolveBoard, resolveProject } from './services/common.js';
 import { getProject, listProjectsFor, projectSummary, upsertArea } from './services/projects.js';
+import { createRequest, getRequestForCtx, listRequests, triage, triageInput } from './services/requests.js';
 import { listUpdates, saveUpdate, weekOf, weekTitle } from './services/updates.js';
 
 const brief = (c: Card, full = false) => ({
@@ -49,7 +50,8 @@ function buildServer(ctx: Ctx) {
       'HSL KanBan tracks software development as projects > boards > columns > cards. Cards are referenced by key (e.g. SS-42). ' +
       'Start with get_project to learn the boards, column names, card fields and areas. Moving a card to another column is how status changes. ' +
       'Every change you make is recorded in the audit history under your account. Prefer add_comment for notes about work done, ' +
-      'and log_progress to add a line to the current week\'s progress update.',
+      'and log_progress to add a line to the current week\'s progress update. Feature requests (keys like SS-R4) are separate from cards: ' +
+      'use create_request when someone asks for something, and triage_request to accept one into a card.',
   });
 
   server.registerTool('list_projects', { title: 'List projects', description: 'Projects you can access, with your role and card counts.', inputSchema: {} },
@@ -280,6 +282,61 @@ function buildServer(ctx: Ctx) {
     const cur = await one(`select id from project_updates where project_id = $1 and title = $2`, [p.id, title]);
     const saved = await saveUpdate(ctx, p.id, cur?.id ?? null, { title, ...rest });
     return { title: saved.title, updated_at: saved.updated_at };
+  }));
+
+  server.registerTool('list_requests', {
+    title: 'List feature requests',
+    description: 'Feature requests on a project, most voted first. Status "open" (default) means new or under review.',
+    inputSchema: {
+      project: projectArg,
+      status: z.enum(['open', 'new', 'reviewing', 'accepted', 'declined', 'duplicate', 'all']).optional(),
+      query: z.string().optional(),
+    },
+  }, wrap(async ({ project, status, query }: any) => {
+    const p = await resolveProject(project);
+    const rows = await listRequests(ctx, p.id, { status: status ?? 'open', query });
+    return rows.map((r) => ({
+      key: r.key, title: r.title, status: r.status, votes: r.votes, area: r.area_name ?? undefined, requested_by: r.requested_by_name,
+      requested_for: r.requested_for || undefined, card: r.card_key ?? undefined, comments: r.comment_count,
+      description: r.description.length > 200 ? r.description.slice(0, 197) + '…' : r.description || undefined,
+    }));
+  }));
+
+  server.registerTool('create_request', {
+    title: 'Submit feature request',
+    description: 'File a feature request on a project, e.g. something a user asked for. Use requested_for to name who asked.',
+    inputSchema: {
+      project: projectArg,
+      title: z.string(),
+      description: z.string().optional().describe('Markdown: what is wanted and why'),
+      area: z.string().optional(),
+      requested_for: z.string().optional().describe('Who asked for it, e.g. "Mark (CSG)"'),
+    },
+  }, wrap(async ({ project, ...input }: any) => {
+    const p = await resolveProject(project);
+    const r = await createRequest(ctx, p.id, input);
+    return { key: r.key, title: r.title, status: r.status };
+  }));
+
+  server.registerTool('triage_request', {
+    title: 'Triage feature request',
+    description:
+      'Move a feature request: "review" (start reviewing), "accept" (creates a card on the given board), "decline" (note required), ' +
+      '"duplicate" (of another request key), or "reopen".',
+    inputSchema: {
+      request: z.string().describe('Request key like "SS-R4"'),
+      action: z.enum(['review', 'accept', 'decline', 'duplicate', 'reopen']),
+      board: z.string().optional().describe('For accept: board key or name'),
+      column: z.string().optional().describe('For accept: column name, default first column'),
+      priority: z.enum(PRIORITIES).optional(),
+      of: z.string().optional().describe('For duplicate: the request key it duplicates'),
+      note: z.string().optional(),
+    },
+  }, wrap(async ({ request, ...rest }: any) => {
+    const { request: r } = await getRequestForCtx(ctx, request);
+    const input = triageInput.parse(rest);
+    const after = await triage(ctx, r.id, input);
+    return { key: after.key, status: after.status, card: after.card_key ?? undefined };
   }));
 
   return server;

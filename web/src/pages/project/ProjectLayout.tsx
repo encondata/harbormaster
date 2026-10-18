@@ -27,6 +27,7 @@ export default function ProjectLayout() {
         {boards.map((b) => (
           <NavLink key={b.id} to={`/p/${p.key}/b/${b.key}`}>{b.name}<span className="count">{b.card_count}</span></NavLink>
         ))}
+        <NavLink to={`/p/${p.key}/requests`}>Requests{p.requests.new > 0 ? <span className="tab-badge" title={`${p.requests.new} new`}>{p.requests.new}</span> : <span className="count">{p.requests.open || ''}</span>}</NavLink>
         <NavLink to={`/p/${p.key}/updates`}>Updates</NavLink>
         {canDo(p, 'project.audit') && <NavLink to={`/p/${p.key}/activity`}>Activity</NavLink>}
         {canDo(p, 'project.manage') && <NavLink to={`/p/${p.key}/settings`}>Settings</NavLink>}

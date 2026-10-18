@@ -9,6 +9,7 @@ import {
   addBoard, addColumn, areaInput, boardInput, boardPatch, columnInput, createProject, deleteArea, deleteColumn, getProject, listMembers,
   listProjectsFor, projectInput, projectPatch, projectSummary, setMember, updateBoard, updateColumn, updateProject, upsertArea,
 } from '../services/projects.js';
+import { exportSettings, runExport, saveExportSettings } from '../services/sheet-export.js';
 import { deleteUpdate, listUpdates, saveUpdate, updateInput } from '../services/updates.js';
 import { parse } from '../validate.js';
 import { queryAudit } from './admin.js';
@@ -134,6 +135,19 @@ export default async function projectRoutes(app: FastifyInstance) {
       data = await fetchGoogleSheet(body.url);
     }
     return importWorkbook(ctx, id, data, { dryRun });
+  });
+
+  // ----- daily Google Sheet export -----
+  app.get('/api/projects/:project/sheet-export', async (req) => exportSettings(requireUser(req), await pid(req)));
+
+  app.put('/api/projects/:project/sheet-export', async (req) => {
+    const body = parse(z.object({ sheet: z.string().max(500).nullable().optional(), enabled: z.boolean().optional(), hour: z.number().int().min(0).max(23).optional() }), req.body);
+    return saveExportSettings(requireUser(req), await pid(req), body);
+  });
+
+  app.post('/api/projects/:project/sheet-export/run', async (req) => {
+    const body = parse(z.object({ dry_run: z.boolean().optional() }), req.body);
+    return runExport(requireUser(req), await pid(req), { dryRun: body.dry_run });
   });
 
   // ----- live change feed (Server-Sent Events) -----

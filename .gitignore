@@ -8,3 +8,5 @@ dist/
 *.xlsx
 *.csv
 data/
+secrets/
+*.tsbuildinfo

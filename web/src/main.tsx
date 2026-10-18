@@ -8,12 +8,14 @@ import { ToastProvider } from './components/ui';
 import { AuthProvider } from './lib/auth';
 import './styles.css';
 
+// Light is the default; dark and "match system" are opt-in from the sidebar or Account page.
+let theme = 'light';
 try {
-  const t = localStorage.getItem('hsl-theme');
-  if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  theme = localStorage.getItem('hsl-theme-v2') ?? 'light';
 } catch {
   /* storage unavailable */
 }
+if (theme === 'dark' || theme === 'light') document.documentElement.dataset.theme = theme;
 
 const client = new QueryClient({
   defaultOptions: {

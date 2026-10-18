@@ -34,6 +34,11 @@ export function useProjectEvents(project: Project | undefined, myName: string | 
       if (e.type.startsWith('board') || e.type.startsWith('area') || e.type.startsWith('project')) pending.add(JSON.stringify(['project', project.key]));
       if (e.type.startsWith('card')) pending.add(JSON.stringify(['project', project.key]));
       if (e.type.startsWith('update') || e.type === 'project.imported') pending.add(JSON.stringify(['updates', project.key]));
+      if (e.type.startsWith('request') || e.type.startsWith('card')) {
+        pending.add(JSON.stringify(['requests', project.key]));
+        pending.add(JSON.stringify(['request']));
+        pending.add(JSON.stringify(['project', project.key]));
+      }
       if (e.cardId && e.actor !== myName) setRecent((r) => ({ ...r, [e.cardId!]: Date.now() }));
       window.clearTimeout(timer.current);
       timer.current = window.setTimeout(flush, 250);

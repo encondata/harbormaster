@@ -24,6 +24,8 @@ export const PROJECT_PERMISSIONS = {
   'attachment.upload': 'Upload attachments to cards',
   'attachment.delete': 'Delete attachments',
   'update.write': 'Write and edit progress updates',
+  'request.create': 'Submit feature requests, vote and comment on them',
+  'request.triage': 'Review, accept (turn into a card), decline or close feature requests',
 } as const;
 
 export type GlobalPermission = keyof typeof GLOBAL_PERMISSIONS;
@@ -61,7 +63,13 @@ export const BUILTIN_ROLES: { name: string; scope: 'global' | 'project'; descrip
     name: 'Contributor',
     scope: 'project',
     description: 'Create, edit and move cards and comment. Cannot archive or write updates.',
-    permissions: ['project.view', 'project.audit', 'card.create', 'card.edit', 'card.move', 'card.comment', 'attachment.upload'],
+    permissions: ['project.view', 'project.audit', 'card.create', 'card.edit', 'card.move', 'card.comment', 'attachment.upload', 'request.create'],
+  },
+  {
+    name: 'Requester',
+    scope: 'project',
+    description: 'Sees the project and submits, votes on and comments on feature requests. Cannot change the board.',
+    permissions: ['project.view', 'request.create'],
   },
   { name: 'Viewer', scope: 'project', description: 'Read-only access to the project.', permissions: ['project.view', 'project.audit'] },
 ];

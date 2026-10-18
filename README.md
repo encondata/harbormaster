@@ -18,8 +18,12 @@ made it and how.
   lives in V3*, *Notes / gap*), tags, priority, assignee, estimate, due date, comments,
   file attachments (stored in MinIO) and a full change history with field-level diffs.
 - **Progress updates**: the sheet's *Weekly Summary* tab, one entry per week.
+- **Feature requests** per project: members (and Claude) submit, vote and comment; anyone with
+  triage rights reviews them and accepts them into a linked card, declines with a reason, or merges duplicates.
 - **Spreadsheet sync**: import or re-sync from the Google Sheet link (or an .xlsx export).
   Re-running only changes what changed in the sheet.
+- **Daily Google Sheet export**: each project can copy its summary, boards, weekly updates and
+  requests into a Google Sheet every day. Setup: [docs/SHEET-EXPORT.md](docs/SHEET-EXPORT.md).
 - **Users and permissions**: user admin, global roles (Administrator, Project Creator,
   Auditor), per-project roles (Owner, Editor, Contributor, Viewer), custom roles with any
   mix of permissions, service accounts, API tokens, forced password changes, session
