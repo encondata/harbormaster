@@ -1,0 +1,9 @@
+# Local development overrides: publish the API and MinIO console on localhost only.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+services:
+  api:
+    ports:
+      - "127.0.0.1:3001:3000"
+  minio:
+    ports:
+      - "127.0.0.1:9101:9001"
