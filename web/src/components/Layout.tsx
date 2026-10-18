@@ -53,7 +53,7 @@ export default function Layout() {
     <div className="shell">
       {open && <div className="scrim" style={{ zIndex: 39 }} onClick={() => setOpen(false)} />}
       <aside className={`sidebar ${open ? 'open' : ''}`}>
-        <div className="brand"><img src="/favicon.svg" alt="" /> HSL KanBan</div>
+        <div className="brand"><img src="/favicon.svg" alt="" /> Harbor Master</div>
         <nav className="nav">
           <NavLink to="/" end>All projects</NavLink>
           <div className="nav-label">Projects</div>

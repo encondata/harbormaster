@@ -30,7 +30,7 @@ export default function Login() {
         }
       }}>
         <div className="bd stack">
-          <div className="brand"><img src="/favicon.svg" alt="" /> HSL KanBan</div>
+          <div className="brand"><img src="/favicon.svg" alt="" /> Harbor Master</div>
           <label className="field">Email<input className="input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required /></label>
           <label className="field">Password<input className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
           <ErrorBox error={err} />

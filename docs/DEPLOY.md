@@ -11,8 +11,8 @@ reverse proxy forwards a hostname to it and handles TLS.
   source) and for Google Sheet syncs.
 
 ```bash
-git clone https://github.com/encondata/hslkanban.git
-cd hslkanban
+git clone https://github.com/encondata/harbormaster.git
+cd harbormaster
 cp .env.example .env
 ```
 
@@ -100,24 +100,24 @@ as one).
 
 ## 5. Backups
 
-Everything lives in two volumes: `hslkanban_db-data` and `hslkanban_minio-data`.
+Everything lives in two volumes: `harbormaster_db-data` and `harbormaster_minio-data`.
 
 Database (nightly cron):
 
 ```bash
-docker compose exec -T db pg_dump -U hslkanban -Fc hslkanban > backups/hslkanban-$(date +%F).dump
+docker compose exec -T db pg_dump -U harbormaster -Fc harbormaster > backups/harbormaster-$(date +%F).dump
 ```
 
 Restore:
 
 ```bash
-docker compose exec -T db pg_restore -U hslkanban -d hslkanban --clean --if-exists < backups/hslkanban-YYYY-MM-DD.dump
+docker compose exec -T db pg_restore -U harbormaster -d harbormaster --clean --if-exists < backups/harbormaster-YYYY-MM-DD.dump
 ```
 
 Attachments:
 
 ```bash
-docker run --rm -v hslkanban_minio-data:/data -v "$PWD/backups":/out alpine tar czf /out/minio-$(date +%F).tgz -C /data .
+docker run --rm -v harbormaster_minio-data:/data -v "$PWD/backups":/out alpine tar czf /out/minio-$(date +%F).tgz -C /data .
 ```
 
 ## 6. Upgrades

@@ -9,7 +9,7 @@ export function ClaudeSetup({ token }: { token: string }) {
   return (
     <div className="stack-sm small">
       <div><b>Connect Claude Code</b> (run once on the machine where you use Claude):</div>
-      <div className="secret">claude mcp add --transport http --scope user hsl-kanban {origin}/api/mcp --header "Authorization: Bearer {token}"</div>
+      <div className="secret">claude mcp add --transport http --scope user harbormaster {origin}/api/mcp --header "Authorization: Bearer {token}"</div>
       <div className="faint">Or call the REST API directly with the header <span className="mono">Authorization: Bearer {token.slice(0, 16)}…</span>. See docs/CLAUDE.md in the repository.</div>
     </div>
   );

@@ -80,7 +80,7 @@ TOK_JSON=$(j -b "$JAR" -d '{"name":"smoke test","expires_in_days":1}' "$API/admi
 TOK=$(echo "$TOK_JSON" | jq -r .token)
 TOK_ID=$(echo "$TOK_JSON" | jq -r .id)
 mcp() { curl -s -H "authorization: Bearer $TOK" -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d "$1" "$API/mcp"; }
-check "MCP initialize" "$(mcp '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"1"}}}' | jq -r .result.serverInfo.name)" "hsl-kanban"
+check "MCP initialize" "$(mcp '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"1"}}}' | jq -r .result.serverInfo.name)" "harbormaster"
 check "MCP lists tools" "$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | jq '[.result.tools[].name] | index("move_card") != null')" "true"
 MOVE_CALL=$(jq -nc --arg c "$CARD" '{jsonrpc: "2.0", id: 3, method: "tools/call", params: {name: "move_card", arguments: {card: $c, column: "Done", comment: "done by smoke test"}}}')
 check "MCP moves a card" "$(mcp "$MOVE_CALL" | jq -r '.result.content[0].text' | jq -r .column)" "Done"

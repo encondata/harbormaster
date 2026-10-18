@@ -1,4 +1,4 @@
-# HSL KanBan
+# Harbor Master
 
 A self-hosted kanban system for tracking software development, built to replace the
 ServerSherpa "BaseCamp V2 to V3 — Feature Parity" Google Sheet. People update it in the

@@ -1,4 +1,4 @@
-# HSL KanBan — notes for working on this repo
+# Harbor Master — notes for working on this repo
 
 Kanban/progress tracker that replaces the ServerSherpa feature-parity Google Sheet. See
 README.md for features and architecture, docs/DEPLOY.md for the server, docs/CLAUDE.md for

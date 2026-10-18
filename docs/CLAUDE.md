@@ -15,7 +15,7 @@ To let Claude work on another project, add the Claude account to that project
 ## 2. Connect Claude Code
 
 ```bash
-claude mcp add --transport http --scope user hsl-kanban https://kanban.example.com/api/mcp --header "Authorization: Bearer hsl_xxxxxxxx_…"
+claude mcp add --transport http --scope user harbormaster https://kanban.example.com/api/mcp --header "Authorization: Bearer hsl_xxxxxxxx_…"
 ```
 
 Check it with `claude mcp list`. In a session, `/mcp` shows the server and its tools.
@@ -54,9 +54,9 @@ Add something like this to the ServerSherpa repo's `CLAUDE.md` so Claude keeps t
 current as it works:
 
 ```markdown
-## Progress tracking (HSL KanBan)
+## Progress tracking (Harbor Master)
 
-Development progress lives in HSL KanBan (MCP server `hsl-kanban`, project `SS`).
+Development progress lives in Harbor Master (MCP server `harbormaster`, project `SS`).
 
 - Before starting a task, find the matching card with `list_cards` (To-Do board for build
   items, Feature Parity board for V2 features). Mention the card key in your plan.
