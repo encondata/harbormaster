@@ -1,5 +1,12 @@
 .DS_Store
 node_modules/
+dist/
 .env
 .env.*
+!.env.example
 *.log
+*.xlsx
+*.csv
+data/
+secrets/
+*.tsbuildinfo
