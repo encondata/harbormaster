@@ -24,6 +24,8 @@ made it and how.
   Re-running only changes what changed in the sheet.
 - **Daily Google Sheet export**: each project can copy its summary, boards, weekly updates and
   requests into a Google Sheet every day. Setup: [docs/SHEET-EXPORT.md](docs/SHEET-EXPORT.md).
+- **Sign-in** with a password or **Google** (for existing accounts only; see
+  [docs/GOOGLE-SIGN-IN.md](docs/GOOGLE-SIGN-IN.md)), with "remember me".
 - **Users and permissions**: user admin, global roles (Administrator, Project Creator,
   Auditor), per-project roles (Owner, Editor, Contributor, Viewer), custom roles with any
   mix of permissions, service accounts, API tokens, forced password changes, session

@@ -36,7 +36,7 @@ export default function UserDetail() {
   return (
     <>
       <div className="topbar">
-        <Avatar name={u.name} service={u.kind === 'service'} />
+        <Avatar name={u.name} service={u.kind === 'service'} userId={u.id} photoAt={u.avatar_updated_at} />
         <h1>{u.name}</h1>
         {u.kind === 'service' && <span className="badge warn">Service account</span>}
         {!u.is_active && <span className="badge">Deactivated</span>}
@@ -56,6 +56,13 @@ export default function UserDetail() {
                 <label className="field">Email<input className="input" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
               </div>
               <div className="faint small">Created {dateTime(u.created_at)} · last sign-in {u.kind === 'service' ? 'n/a (token only)' : timeAgo(u.last_login_at)}{u.must_change_password ? ' · must change password at next sign-in' : ''}</div>
+              {u.kind === 'human' && (
+                <div className="row small">
+                  <span className="muted">Google sign-in:</span>
+                  {u.google_linked ? <span className="badge ok">Linked</span> : <span className="faint">not linked yet (links on first Google sign-in)</span>}
+                  {u.google_linked && <button className="btn ghost sm" onClick={async () => { try { await api.post(`/api/admin/users/${id}/unlink-google`); refresh(); toast('Google account unlinked'); } catch (e) { setErr(e); } }}>Unlink</button>}
+                </div>
+              )}
               <div><button className="btn primary" disabled={name === u.name && email === u.email} onClick={() => patch({ name, email })}>Save</button></div>
             </div>
           </div>

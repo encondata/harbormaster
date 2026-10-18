@@ -40,6 +40,9 @@ services:
       SEED_SHEET_URL: ${SEED_SHEET_URL:-}
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-2}
       TIMEZONE: ${TIMEZONE:-UTC}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      GOOGLE_OAUTH_ALLOWED_DOMAINS: ${GOOGLE_OAUTH_ALLOWED_DOMAINS:-}
       GOOGLE_SERVICE_ACCOUNT_FILE: /app/secrets/google-service-account.json
     volumes:
       # Optional Google service account key for the daily sheet export (see docs/SHEET-EXPORT.md).

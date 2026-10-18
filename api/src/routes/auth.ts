@@ -15,7 +15,7 @@ let dummyHash: Promise<string> | null = null;
 const getDummyHash = () => (dummyHash ??= hashPassword(randomToken()));
 
 export async function meView(ctx: Ctx) {
-  const u = await one(`select id, email, name, kind, must_change_password, last_login_at, created_at from users where id = $1`, [ctx.user.id]);
+  const u = await one(`select id, email, name, kind, must_change_password, last_login_at, created_at, avatar_updated_at from users where id = $1`, [ctx.user.id]);
   const roles = await q(`select r.id, r.name from user_roles ur join roles r on r.id = ur.role_id where ur.user_id = $1 order by r.name`, [ctx.user.id]);
   return { ...u, global_roles: roles, global_permissions: [...ctx.global], projects: await listProjectsFor(ctx) };
 }
@@ -48,7 +48,7 @@ export async function revokeToken(ctx: Ctx, userId: string, tokenId: string) {
 
 export default async function authRoutes(app: FastifyInstance) {
   app.post('/api/auth/login', { config: { rateLimit: { max: 10, timeWindow: '5 minutes' } } }, async (req, reply) => {
-    const body = parse(z.object({ email: z.string().trim().min(1).max(200), password: z.string().min(1).max(200) }), req.body);
+    const body = parse(z.object({ email: z.string().trim().min(1).max(200), password: z.string().min(1).max(200), remember: z.boolean().default(true) }), req.body);
     const u = await one<{ id: string; name: string; password_hash: string | null; is_active: boolean; kind: string }>(
       `select id, name, password_hash, is_active, kind from users where lower(email) = lower($1)`,
       [body.email],
@@ -65,10 +65,10 @@ export default async function authRoutes(app: FastifyInstance) {
       });
       throw unauthorized('Email or password is incorrect');
     }
-    const s = await createSession(u.id, req.ip, req.headers['user-agent'] ?? null);
+    const s = await createSession(u.id, req.ip, req.headers['user-agent'] ?? null, body.remember);
     await q(`update users set last_login_at = now() where id = $1`, [u.id]);
-    await audit(sysCtx(u.name, u.id), { action: 'auth.login', entityType: 'user', entityId: u.id, summary: `${u.name} signed in` });
-    setSessionCookie(reply, s.token, s.expires);
+    await audit(sysCtx(u.name, u.id), { action: 'auth.login', entityType: 'user', entityId: u.id, summary: `${u.name} signed in with a password` });
+    setSessionCookie(reply, s.token, s.expires, s.remember);
     return { ok: true };
   });
 
@@ -102,7 +102,7 @@ export default async function authRoutes(app: FastifyInstance) {
     const problem = validatePassword(body.new_password);
     if (problem) throw badRequest(problem);
     if (body.new_password === body.current_password) throw badRequest('Choose a different password');
-    await q(`update users set password_hash = $2, must_change_password = false, updated_at = now() where id = $1`, [ctx.user.id, await hashPassword(body.new_password)]);
+    await q(`update users set password_hash = $2, must_change_password = false, password_changed_at = now(), updated_at = now() where id = $1`, [ctx.user.id, await hashPassword(body.new_password)]);
     // Sign out every other session.
     await q(`delete from sessions where user_id = $1 and id <> $2`, [ctx.user.id, ctx.sessionId ?? '']);
     await audit(ctx, { action: 'user.password_changed', entityType: 'user', entityId: ctx.user.id, summary: `${ctx.user.name} changed their password` });

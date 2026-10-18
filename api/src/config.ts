@@ -28,6 +28,18 @@ export const config = {
   sessionDays: 14,
   // Google service account key (JSON) used to write exported sheets. Optional.
   googleServiceAccountFile: env('GOOGLE_SERVICE_ACCOUNT_FILE', '/app/secrets/google-service-account.json'),
+  // Google sign-in (OAuth / OpenID Connect). Off unless both values are set.
+  google: {
+    clientId: process.env.GOOGLE_OAUTH_CLIENT_ID ?? '',
+    clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? '',
+    // Optional comma-separated list of allowed email domains, e.g. "encondata.com".
+    allowedDomains: (process.env.GOOGLE_OAUTH_ALLOWED_DOMAINS ?? '').split(',').map((d) => d.trim().toLowerCase()).filter(Boolean),
+    // Endpoints can be overridden only to point tests at a stand-in server.
+    authUrl: process.env.GOOGLE_OAUTH_AUTH_URL || 'https://accounts.google.com/o/oauth2/v2/auth',
+    tokenUrl: process.env.GOOGLE_OAUTH_TOKEN_URL || 'https://oauth2.googleapis.com/token',
+    jwksUrl: process.env.GOOGLE_OAUTH_JWKS_URL || 'https://www.googleapis.com/oauth2/v3/certs',
+    issuers: (process.env.GOOGLE_OAUTH_ISSUERS || 'https://accounts.google.com,accounts.google.com').split(','),
+  },
   // Time zone for scheduled jobs such as the daily sheet export.
   timezone: env('TIMEZONE', 'UTC'),
 };

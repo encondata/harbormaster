@@ -101,7 +101,7 @@ export default function UsersPage() {
               <tbody>
                 {users.map((u) => (
                   <tr key={u.id}>
-                    <td><Link to={`/admin/users/${u.id}`} className="row" style={{ color: 'inherit' }}><Avatar name={u.name} service={u.kind === 'service'} /><div><div style={{ fontWeight: 600 }}>{u.name}</div><div className="faint small">{u.email}</div></div></Link></td>
+                    <td><Link to={`/admin/users/${u.id}`} className="row" style={{ color: 'inherit' }}><Avatar name={u.name} service={u.kind === 'service'} userId={u.id} photoAt={u.avatar_updated_at} /><div><div style={{ fontWeight: 600 }}>{u.name}</div><div className="faint small">{u.email}</div></div></Link></td>
                     <td>{u.global_roles.map((r) => <span key={r.id} className="badge accent" style={{ marginRight: 4 }}>{r.name}</span>)}</td>
                     <td className="small">{u.projects.map((p) => `${p.project_key} · ${p.role_name}`).join(', ') || <span className="faint">—</span>}</td>
                     <td className="small faint">{u.kind === 'service' ? 'token only' : timeAgo(u.last_login_at)}</td>

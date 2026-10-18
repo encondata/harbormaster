@@ -57,7 +57,7 @@ export type Project = { id: string; key: string; name: string; description: stri
 export type ProjectListItem = { id: string; key: string; name: string; description: string; archived_at: string | null; my_role: string | null; card_count: number; member_count: number };
 
 export type Me = {
-  id: string; email: string; name: string; kind: string; must_change_password: boolean; last_login_at: string | null;
+  id: string; email: string; name: string; kind: string; must_change_password: boolean; last_login_at: string | null; avatar_updated_at: string | null;
   global_roles: { id: string; name: string }[]; global_permissions: string[]; projects: ProjectListItem[];
 };
 
@@ -86,7 +86,7 @@ export type Update = { id: string; title: string; period_start: string | null; p
 export type AdminUser = {
   id: string; email: string; name: string; kind: 'human' | 'service'; is_active: boolean; must_change_password: boolean; last_login_at: string | null; created_at: string;
   global_roles: { id: string; name: string }[]; projects: { project_id: string; project_key: string; project_name: string; role_id: string; role_name: string }[];
-  active_tokens: number; active_sessions: number;
+  active_tokens: number; active_sessions: number; google_linked: boolean; avatar_updated_at: string | null; job_title: string;
 };
 
 export type RequestStatus = 'new' | 'reviewing' | 'accepted' | 'declined' | 'duplicate';

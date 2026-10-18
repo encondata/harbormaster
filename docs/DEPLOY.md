@@ -28,6 +28,7 @@ cp .env.example .env
 | `SEED_SHEET_URL` | Optional. The Google Sheet link, imported into ServerSherpa on first start. |
 | `TRUST_PROXY_HOPS` | `2` (nginx in the web container + the house proxy). `1` if nothing sits in front of `web`. |
 | `MAX_UPLOAD_MB` | Attachment size limit (default 25). |
+| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_ALLOWED_DOMAINS` | Optional "Sign in with Google". See [GOOGLE-SIGN-IN.md](GOOGLE-SIGN-IN.md). |
 | `TIMEZONE` | Time zone for scheduled jobs such as the daily sheet export, e.g. `America/Chicago`. |
 
 Keep `.env` out of git (it is ignored) and readable only by the deploy user:

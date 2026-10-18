@@ -11,9 +11,12 @@ import { HttpError } from './errors.js';
 import mcpRoutes from './mcp.js';
 import adminRoutes from './routes/admin.js';
 import authRoutes from './routes/auth.js';
+import googleAuthRoutes from './routes/google-auth.js';
 import cardRoutes from './routes/cards.js';
 import projectRoutes from './routes/projects.js';
 import requestRoutes from './routes/requests.js';
+import searchRoutes from './routes/search.js';
+import meRoutes from './routes/me.js';
 import { startScheduler } from './scheduler.js';
 import { ensureBucket, storageHealthy } from './storage.js';
 
@@ -73,10 +76,13 @@ app.get('/api/health', { logLevel: 'warn' }, async (_req, reply) => {
 });
 
 await app.register(authRoutes);
+await app.register(googleAuthRoutes);
 await app.register(adminRoutes);
 await app.register(projectRoutes);
 await app.register(cardRoutes);
 await app.register(requestRoutes);
+await app.register(searchRoutes);
+await app.register(meRoutes);
 await app.register(mcpRoutes);
 
 const log = (m: string) => app.log.info(m);

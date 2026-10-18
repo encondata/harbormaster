@@ -10,7 +10,7 @@ import { parse } from '../validate.js';
 import { issueToken, listTokens, revokeToken, tokenInput } from './auth.js';
 
 const USER_SELECT = `
-  select u.id, u.email, u.name, u.kind, u.is_active, u.must_change_password, u.last_login_at, u.created_at, u.updated_at,
+  select u.id, u.email, u.name, u.kind, u.is_active, u.must_change_password, u.last_login_at, u.created_at, u.updated_at, u.google_sub is not null as google_linked, u.avatar_updated_at, u.job_title,
          coalesce((select json_agg(json_build_object('id', r.id, 'name', r.name) order by r.name) from user_roles ur join roles r on r.id = ur.role_id where ur.user_id = u.id), '[]') as global_roles,
          coalesce((select json_agg(json_build_object('project_id', p.id, 'project_key', p.key, 'project_name', p.name, 'role_id', r.id, 'role_name', r.name) order by p.name)
                      from project_members m join projects p on p.id = m.project_id join roles r on r.id = m.role_id where m.user_id = u.id), '[]') as projects,
@@ -156,7 +156,7 @@ export default async function adminRoutes(app: FastifyInstance) {
   // Lightweight directory any signed-in user can read (for assigning cards and adding members).
   app.get('/api/users/directory', async (req) => {
     requireUser(req);
-    return q(`select id, name, email, kind from users where is_active order by name`);
+    return q(`select id, name, email, kind, avatar_updated_at from users where is_active order by name`);
   });
 
   app.get('/api/admin/users/:id', async (req) => {
@@ -255,11 +255,20 @@ export default async function adminRoutes(app: FastifyInstance) {
     const problem = validatePassword(password);
     if (problem) throw badRequest(problem);
     await tx(async (c) => {
-      await c.query(`update users set password_hash = $2, must_change_password = $3, updated_at = now() where id = $1`, [id, await hashPassword(password), body.must_change_password]);
+      await c.query(`update users set password_hash = $2, must_change_password = $3, password_changed_at = now(), updated_at = now() where id = $1`, [id, await hashPassword(password), body.must_change_password]);
       await c.query(`delete from sessions where user_id = $1`, [id]);
       await audit(ctx, { action: 'user.password_reset', entityType: 'user', entityId: id, summary: `Reset ${u.name}'s password and signed them out everywhere` }, c);
     });
     return { temporary_password: body.password ? undefined : password };
+  });
+
+  app.post('/api/admin/users/:id/unlink-google', async (req) => {
+    const ctx = requireUser(req);
+    requireGlobal(ctx, 'admin.users');
+    const id = (req.params as any).id;
+    const u = await one(`update users set google_sub = null where id = $1 and google_sub is not null returning name`, [id]);
+    if (u) await audit(ctx, { action: 'user.google_unlinked', entityType: 'user', entityId: id, summary: `Unlinked ${u.name}'s Google account` });
+    return { ok: true };
   });
 
   app.post('/api/admin/users/:id/revoke-sessions', async (req) => {

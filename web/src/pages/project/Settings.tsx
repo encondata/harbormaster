@@ -6,7 +6,7 @@ import { COLORS, colorVar, dateTime } from '../../lib/format';
 import { canDo } from '../../lib/project';
 import { useProjectCtx } from './ProjectLayout';
 
-type Member = { id: string; name: string; email: string; kind: string; is_active: boolean; role_id: string; role_name: string };
+type Member = { id: string; name: string; email: string; kind: string; is_active: boolean; role_id: string; role_name: string; avatar_updated_at: string | null };
 
 function useRefresh(p: Project) {
   const qc = useQueryClient();
@@ -65,7 +65,7 @@ function Members({ project }: { project: Project }) {
       <div className="bd stack-sm">
         {(members.data ?? []).map((m) => (
           <div key={m.id} className="row">
-            <Avatar name={m.name} service={m.kind === 'service'} />
+            <Avatar name={m.name} service={m.kind === 'service'} userId={m.id} photoAt={m.avatar_updated_at} />
             <div className="grow"><div style={{ fontWeight: 550 }}>{m.name}{m.kind === 'service' && <span className="badge warn" style={{ marginLeft: 6 }}>service</span>}{!m.is_active && <span className="badge" style={{ marginLeft: 6 }}>inactive</span>}</div><div className="faint small">{m.email}</div></div>
             <select className="input sm" style={{ width: 160 }} value={m.role_id} onChange={(e) => set(m.id, e.target.value)}>
               {projectRoles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
