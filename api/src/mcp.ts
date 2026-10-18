@@ -45,9 +45,9 @@ const projectArg = z.string().describe('Project key (e.g. "SS") or id');
 const cardArg = z.string().describe('Card key like "SS-42"');
 
 function buildServer(ctx: Ctx) {
-  const server = new McpServer({ name: 'hsl-kanban', version: '0.1.0' }, {
+  const server = new McpServer({ name: 'harbormaster', version: '0.2.0' }, {
     instructions:
-      'HSL KanBan tracks software development as projects > boards > columns > cards. Cards are referenced by key (e.g. SS-42). ' +
+      'Harbor Master tracks software development as projects > boards > columns > cards. Cards are referenced by key (e.g. SS-42). ' +
       'Start with get_project to learn the boards, column names, card fields and areas. Moving a card to another column is how status changes. ' +
       'Every change you make is recorded in the audit history under your account. Prefer add_comment for notes about work done, ' +
       'and log_progress to add a line to the current week\'s progress update. Feature requests (keys like SS-R4) are separate from cards: ' +

@@ -42,7 +42,7 @@ export async function buildTabs(projectId: string): Promise<Tab[]> {
   const tabs: Tab[] = [];
 
   // ---- Summary ----
-  const summary: Cell[][] = [[`${project.name} (${project.key})`], ['Exported from HSL KanBan', stamp()], ['This sheet is overwritten by the daily export. Make changes in HSL KanBan.'], []];
+  const summary: Cell[][] = [[`${project.name} (${project.key})`], ['Exported from Harbor Master', stamp()], ['This sheet is overwritten by the daily export. Make changes in Harbor Master.'], []];
   for (const b of boards) {
     const s = await boardSummary(b.id);
     const cols = s.columns.filter((c) => s.totals.counts[c.id]);

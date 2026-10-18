@@ -40,6 +40,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<Projects />} />
         <Route path="account" element={<Account />} />
+        <Route path="settings" element={<Navigate to="/account?tab=preferences" replace />} />
         <Route path="admin/users" element={<UsersPage />} />
         <Route path="admin/users/:id" element={<UserDetail />} />
         <Route path="admin/roles" element={<RolesPage />} />

@@ -22,8 +22,14 @@ export function Modal({ title, onClose, children, footer, wide }: { title: React
   );
 }
 
-export function Avatar({ name, service }: { name: string; service?: boolean }) {
-  return <span className={`avatar ${service ? 'svc' : ''}`} title={name}>{service ? '⚙' : initials(name)}</span>;
+/** Photo when the user has one, otherwise initials (a gear for service accounts). */
+export function Avatar({ name, service, userId, photoAt, size }: { name: string; service?: boolean; userId?: string; photoAt?: string | null; size?: number }) {
+  const [broken, setBroken] = useState(false);
+  const style = size ? { width: size, height: size, fontSize: Math.round(size * 0.38) } : undefined;
+  if (userId && photoAt && !broken) {
+    return <img className={`avatar ${service ? 'svc' : ''}`} style={style} src={`/api/users/${userId}/avatar?v=${Date.parse(photoAt)}`} alt="" title={name} onError={() => setBroken(true)} />;
+  }
+  return <span className={`avatar ${service ? 'svc' : ''}`} style={style} title={name}>{service ? '⚙' : initials(name)}</span>;
 }
 
 export function ErrorBox({ error }: { error: unknown }) {

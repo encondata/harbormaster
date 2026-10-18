@@ -64,15 +64,18 @@ export async function buildCtx(user: CtxUser, opts: { via: Via; ip: string | nul
 
 const userCols = 'u.id, u.email, u.name, u.kind, u.must_change_password';
 
-export async function createSession(userId: string, ip: string | null, ua: string | null) {
+const SHORT_SESSION_MS = 12 * 3600_000;
+
+/** remember=false gives a 12-hour session whose cookie ends when the browser closes. */
+export async function createSession(userId: string, ip: string | null, ua: string | null, remember = true) {
   const token = randomToken();
-  const expires = new Date(Date.now() + config.sessionDays * 86400_000);
-  await q(`insert into sessions (id, user_id, expires_at, ip, user_agent) values ($1, $2, $3, $4, $5)`, [sha256(token), userId, expires, ip, ua?.slice(0, 300) ?? null]);
-  return { token, expires };
+  const expires = new Date(Date.now() + (remember ? config.sessionDays * 86400_000 : SHORT_SESSION_MS));
+  await q(`insert into sessions (id, user_id, expires_at, ip, user_agent, remember) values ($1, $2, $3, $4, $5, $6)`, [sha256(token), userId, expires, ip, ua?.slice(0, 300) ?? null, remember]);
+  return { token, expires, remember };
 }
 
-export function setSessionCookie(reply: FastifyReply, token: string, expires: Date) {
-  reply.setCookie(SESSION_COOKIE, token, { path: '/', httpOnly: true, sameSite: 'lax', secure: config.cookieSecure, expires });
+export function setSessionCookie(reply: FastifyReply, token: string, expires: Date, remember = true) {
+  reply.setCookie(SESSION_COOKIE, token, { path: '/', httpOnly: true, sameSite: 'lax', secure: config.cookieSecure, ...(remember ? { expires } : {}) });
 }
 
 export function clearSessionCookie(reply: FastifyReply) {
@@ -114,7 +117,7 @@ export async function authenticate(req: FastifyRequest, via: Via = 'web') {
   );
   if (!row) return;
   if (Date.now() - new Date(row.last_seen_at).getTime() > 5 * 60_000) {
-    q(`update sessions set last_seen_at = now(), expires_at = now() + make_interval(days => $2) where id = $1`, [sid, config.sessionDays]).catch(() => {});
+    q(`update sessions set last_seen_at = now(), expires_at = now() + case when remember then make_interval(days => $2) else interval '12 hours' end where id = $1`, [sid, config.sessionDays]).catch(() => {});
   }
   const { last_seen_at, ...user } = row;
   req.ctx = await buildCtx(user, { via: 'web', ip, sessionId: sid });

@@ -12,11 +12,11 @@ spreadsheet). Otherwise the next sync would read back what the export wrote.
 
 The server writes to Google as a *service account*, a robot Google identity. It's free.
 
-1. Go to https://console.cloud.google.com/ and create a project (e.g. "HSL KanBan"), or pick
+1. Go to https://console.cloud.google.com/ and create a project (e.g. "Harbor Master"), or pick
    an existing one.
 2. **APIs & Services → Library**: search for **Google Sheets API** and click **Enable**.
 3. **IAM & Admin → Service Accounts → Create service account**. Name it e.g.
-   `hsl-kanban-export`. Skip the optional role and user-access steps.
+   `harbormaster-export`. Skip the optional role and user-access steps.
 4. Open the new account → **Keys → Add key → Create new key → JSON**. A `.json` file downloads.
 5. On the server, put that file at `secrets/google-service-account.json` in the repository
    folder (next to `docker-compose.yml`) and make it readable by the container:

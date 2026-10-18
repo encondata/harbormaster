@@ -326,7 +326,7 @@ export async function deleteColumn(ctx: Ctx, projectId: string, boardId: string,
 export async function listMembers(ctx: Ctx, projectId: string) {
   await requireProject(ctx, projectId, 'project.view');
   return q(
-    `select u.id, u.name, u.email, u.kind, u.is_active, r.id as role_id, r.name as role_name, m.created_at
+    `select u.id, u.name, u.email, u.kind, u.is_active, u.avatar_updated_at, r.id as role_id, r.name as role_name, m.created_at
        from project_members m join users u on u.id = m.user_id join roles r on r.id = m.role_id where m.project_id = $1 order by u.name`,
     [projectId],
   );
