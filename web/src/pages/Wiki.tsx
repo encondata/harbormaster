@@ -89,6 +89,13 @@ function FolderSelect({ tree, value, onChange, exclude }: { tree: Tree; value: s
 // ---------- Tree ------------------------------------------------------------------------------------
 
 const OPEN_KEY = 'hsl-wiki-open';
+const NAV_KEY = 'hsl-wiki-nav-collapsed';
+
+const PaneIcon = ({ open }: { open?: boolean }) => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" />{open ? <path d="M14 10l2 2-2 2" /> : <path d="M16 10l-2 2 2 2" />}
+  </svg>
+);
 function loadOpen(): Set<string> {
   try { return new Set(JSON.parse(localStorage.getItem(OPEN_KEY) ?? '[]')); } catch { return new Set(); }
 }
@@ -799,7 +806,10 @@ export default function Wiki() {
   const [text, setText] = useState(loc.pathname === '/wiki/search' ? sp.get('q') ?? '' : '');
   const [newFolder, setNewFolder] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  // Desktop: the folder pane can fold away to a thin strip (remembered). Phones use the Folders button.
+  const [navCollapsed, setNavCollapsed] = useState(() => { try { return localStorage.getItem(NAV_KEY) === '1'; } catch { return false; } });
   useEffect(() => setNavOpen(false), [loc.pathname]);
+  useEffect(() => { try { localStorage.setItem(NAV_KEY, navCollapsed ? '1' : '0'); } catch { /* storage unavailable */ } }, [navCollapsed]);
   const t = tree.data;
   // New pages start in the folder being viewed, when you can edit there.
   const here = /^\/wiki\/folder\/([0-9a-f-]{36})/.exec(loc.pathname)?.[1];
@@ -815,9 +825,16 @@ export default function Wiki() {
         {canCreate && <Link className="btn primary" to={newPageHref}>New page</Link>}
         {canCreate && <button className="btn" onClick={() => setNewFolder(true)}>New folder</button>}
       </div>
-      <div className="wiki">
-        <aside className={`wiki-nav ${navOpen ? 'open' : ''}`}>
+      <div className={`wiki ${navCollapsed ? 'nav-collapsed' : ''}`}>
+        <aside className={`wiki-nav ${navOpen ? 'open' : ''} ${navCollapsed ? 'collapsed' : ''}`}>
           <button type="button" className="btn sm wiki-nav-toggle" aria-expanded={navOpen} onClick={() => setNavOpen(!navOpen)}>{navOpen ? 'Hide folders' : 'Folders'}</button>
+          <button type="button" className="wiki-nav-expand" onClick={() => setNavCollapsed(false)} aria-label="Show folders" title="Show folders">
+            <PaneIcon open /><span>Folders</span>
+          </button>
+          <div className="wiki-nav-head">
+            <span className="faint small">Folders</span>
+            <button type="button" className="rail-toggle" onClick={() => setNavCollapsed(true)} aria-label="Hide folders" title="Hide folders"><PaneIcon /></button>
+          </div>
           <div className="wiki-nav-body">
             {tree.isLoading && <Spinner />}
             <ErrorBox error={tree.error} />
