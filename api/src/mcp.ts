@@ -5,6 +5,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticate, requireProject, requireUser, type Ctx } from './auth.js';
+import { config } from './config.js';
 import { one, q } from './db.js';
 import { HttpError } from './errors.js';
 import { resourceMetadataUrl } from './routes/oauth.js';
@@ -46,7 +47,16 @@ const projectArg = z.string().describe('Project key (e.g. "SS") or id');
 const cardArg = z.string().describe('Card key like "SS-42"');
 
 function buildServer(ctx: Ctx) {
-  const server = new McpServer({ name: 'harbormaster', version: '0.2.0' }, {
+  const server = new McpServer({
+    name: 'harbormaster',
+    title: 'Harbor Master',
+    version: '0.3.0',
+    websiteUrl: config.publicUrl,
+    icons: [
+      { src: `${config.publicUrl}/logo.png`, mimeType: 'image/png', sizes: ['512x512'] },
+      { src: `${config.publicUrl}/favicon-64.png`, mimeType: 'image/png', sizes: ['64x64'] },
+    ],
+  }, {
     instructions:
       'Harbor Master tracks software development as projects > boards > columns > cards. Cards are referenced by key (e.g. SS-42). ' +
       'Start with get_project to learn the boards, column names, card fields and areas. Moving a card to another column is how status changes. ' +
