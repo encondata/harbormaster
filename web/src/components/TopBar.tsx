@@ -48,6 +48,9 @@ function Crumbs() {
     const names: Record<string, string> = { users: 'Users', roles: 'Roles & permissions', audit: 'Audit log' };
     crumbs.push({ label: 'Administration' }, { label: names[parts[1]] ?? parts[1], to: `/admin/${parts[1]}` });
     if (parts[2]) crumbs.push({ label: 'User' });
+  } else if (parts[0] === 'skills') {
+    crumbs.push({ label: 'Skills', to: '/skills' });
+    if (parts[1]) crumbs.push({ label: decodeURIComponent(parts[1]) });
   } else if (parts[0] === 'account') crumbs.push({ label: 'Account', to: '/account' }, { label: ({ claude: 'Claude', preferences: 'Preferences', notifications: 'Notifications', history: 'History' } as Record<string, string>)[sp.get('tab') ?? ''] ?? 'My profile' });
   else crumbs.push({ label: 'Projects' }, { label: 'All projects' });
   return (

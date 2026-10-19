@@ -18,6 +18,7 @@ import requestRoutes from './routes/requests.js';
 import searchRoutes from './routes/search.js';
 import meRoutes from './routes/me.js';
 import oauthRoutes from './routes/oauth.js';
+import skillRoutes from './routes/skills.js';
 import { startScheduler } from './scheduler.js';
 import { ensureBucket, storageHealthy } from './storage.js';
 
@@ -92,6 +93,7 @@ await app.register(cardRoutes);
 await app.register(requestRoutes);
 await app.register(searchRoutes);
 await app.register(meRoutes);
+await app.register(skillRoutes);
 await app.register(oauthRoutes);
 await app.register(mcpRoutes);
 

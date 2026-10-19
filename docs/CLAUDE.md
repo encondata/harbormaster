@@ -42,6 +42,28 @@ Claude Project or a repository's `CLAUDE.md`, using that project's real boards a
 - Redirect URIs must be https, or http on localhost. The web container proxies
   `/.well-known/oauth-*` to the API.
 
+## Skills
+
+Harbor Master is also the home of the team's Claude Code skills (sidebar → **Skills**). A skill
+version holds every file it installs under `~/.claude`: `skills/<name>/…` plus any
+`agents/*.md` or `commands/*.md` it brings. Any machine signed in to Harbor Master in Claude Code
+can install one by asking "install the factory skill from Harbor Master"; Claude uses the
+`get_skill` tool and writes the files, plus a `skills/<name>/.harbormaster.json` manifest that
+records the version. The factory checks that manifest against `list_skills` on every run and
+updates itself.
+
+Publishing needs the **skills.publish** permission (Administrators have it). From Claude:
+"publish the factory skill to Harbor Master" (`publish_skill`), or `/factory publish <notes>`.
+From the server console, with a JSON bundle `{name, notes, files: [{path, content, executable}]}`
+on stdin:
+
+```bash
+docker compose exec -T api node dist/cli.js publish-skill you@example.com < bundle.json
+```
+
+Publishing identical files keeps the current version. Archiving a skill hides it from the list;
+machines that have it keep their copy.
+
 ## Shared automation: the Claude service account
 
 For automation that shouldn't act as a person (scheduled jobs, the factory later), an administrator

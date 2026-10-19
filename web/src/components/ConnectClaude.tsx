@@ -8,7 +8,7 @@ import { ErrorBox, useToast } from './ui';
 
 type Meta = { public_url: string; mcp_url: string };
 
-function CopyBlock({ text, label }: { text: string; label: string }) {
+export function CopyBlock({ text, label }: { text: string; label: string }) {
   const toast = useToast();
   const ref = useRef<HTMLPreElement>(null);
   const copy = async () => {

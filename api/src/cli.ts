@@ -2,11 +2,13 @@
 //   docker compose exec api node dist/cli.js reset-password <email> [new-password]
 //   docker compose exec api node dist/cli.js make-admin <email>
 //   docker compose exec api node dist/cli.js export-sheet <PROJECT-KEY> [--dry-run]
+//   docker compose exec -T api node dist/cli.js publish-skill <email> < bundle.json   ({name, notes?, files})
 import { audit } from './audit.js';
-import { hashPassword, randomToken, systemCtx, validatePassword } from './auth.js';
+import { buildCtx, hashPassword, randomToken, systemCtx, validatePassword } from './auth.js';
 import { one, pool, tx } from './db.js';
 import { resolveProject } from './services/common.js';
 import { runExport } from './services/sheet-export.js';
+import { publishSkill } from './services/skills.js';
 
 const [cmd, email, password] = process.argv.slice(2);
 
@@ -17,8 +19,19 @@ async function main() {
     console.log(`${r.dry_run ? 'Dry run (nothing written)' : 'Exported'} ${project.key}: ${r.tabs.map((t) => `${t.title} (${t.rows} rows)`).join(', ')}`);
     return;
   }
+  if (cmd === 'publish-skill' && email) {
+    // Publishes as that user (they need skills.publish); the bundle comes on stdin so nothing lands on disk.
+    const u = await one<{ id: string; email: string; name: string; kind: 'human' | 'service' }>(`select id, email, name, kind from users where lower(email) = lower($1) and is_active`, [email]);
+    if (!u) throw new Error(`No active user with email ${email}`);
+    let raw = '';
+    for await (const chunk of process.stdin) raw += chunk;
+    const ctx = await buildCtx({ ...u, must_change_password: false }, { via: 'system', ip: null });
+    const r = await publishSkill(ctx, JSON.parse(raw));
+    console.log(r.unchanged ? `${r.name} is unchanged (still v${r.version})` : `Published ${r.name} v${r.version}`);
+    return;
+  }
   if (!cmd || !email) {
-    console.log('Usage:\n  node dist/cli.js reset-password <email> [new-password]\n  node dist/cli.js make-admin <email>\n  node dist/cli.js export-sheet <PROJECT-KEY> [--dry-run]');
+    console.log('Usage:\n  node dist/cli.js reset-password <email> [new-password]\n  node dist/cli.js make-admin <email>\n  node dist/cli.js export-sheet <PROJECT-KEY> [--dry-run]\n  node dist/cli.js publish-skill <email> < bundle.json');
     process.exit(1);
   }
   const user = await one<{ id: string; name: string; kind: string }>(`select id, name, kind from users where lower(email) = lower($1)`, [email]);

@@ -8,6 +8,7 @@ export const GLOBAL_PERMISSIONS = {
   'admin.audit': 'View the full audit log across the system',
   'projects.create': 'Create new projects',
   'projects.all': 'Full access to every project, as if Owner on each',
+  'skills.publish': 'Publish Claude skills that every signed-in machine installs',
 } as const;
 
 export const PROJECT_PERMISSIONS = {
