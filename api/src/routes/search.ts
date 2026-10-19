@@ -2,6 +2,7 @@
 import type { FastifyInstance } from 'fastify';
 import { requireUser, type Ctx } from '../auth.js';
 import { q } from '../db.js';
+import { searchWiki } from '../services/wiki.js';
 
 /** Project ids the caller can see, and the subset whose activity they may read. */
 async function visibleProjects(ctx: Ctx) {
@@ -25,9 +26,10 @@ export default async function searchRoutes(app: FastifyInstance) {
   app.get('/api/search', async (req) => {
     const ctx = requireUser(req);
     const text = String((req.query as any).q ?? '').trim().slice(0, 100);
-    if (!text) return { projects: [], boards: [], cards: [], requests: [] };
+    if (!text) return { projects: [], boards: [], cards: [], requests: [], wiki: [] };
     const { view } = await visibleProjects(ctx);
-    if (!view.length) return { projects: [], boards: [], cards: [], requests: [] };
+    const wiki = (await searchWiki(ctx, text, { limit: 5 })).map((p) => ({ id: p.id, title: p.title, path: p.path.join(' / '), tags: p.tags }));
+    if (!view.length) return { projects: [], boards: [], cards: [], requests: [], wiki };
     const pat = like(text);
     // "SS-42" or "SS-R4" jumps straight to that card or request.
     const keyMatch = /^([A-Za-z][A-Za-z0-9]*)-(R?)(\d+)$/.exec(text);
@@ -46,7 +48,7 @@ export default async function searchRoutes(app: FastifyInstance) {
           where r.project_id = any($1) and (r.title ilike $2 or (p.key || '-R' || r.number) ilike $3)
           order by (p.key || '-R' || r.number) ilike $3 desc, r.updated_at desc limit 5`, [view, pat, text]),
     ]);
-    return { projects, boards, cards, requests };
+    return { projects, boards, cards, requests, wiki };
   });
 
   // Recent changes on your projects made by someone else (people, Claude, imports).

@@ -42,6 +42,25 @@ Claude Project or a repository's `CLAUDE.md`, using that project's real boards a
 - Redirect URIs must be https, or http on localhost. The web container proxies
   `/.well-known/oauth-*` to the API.
 
+## Wiki access
+
+Everyone signed in can read the wiki; the **wiki.edit** permission (the built-in *Wiki Editor*
+role) can edit; **wiki.manage** (Administrators) can delete folders, set access, restore from
+the trash and moderate comments. Each project's folder (with Design and Operations inside)
+follows the project instead: members who can see the project can read it, and members whose
+project role has **wiki.write** (Owner, Editor, Contributor) can edit it. Any folder can set its
+own rules (people or global roles, view or edit) for itself and everything below, and a
+restricted folder is visible only to the people its rules name.
+
+## The factory's design docs
+
+When every review of a factory job passes, the `factory-design-doc` worker runs beside the
+approver. It writes `design.md` in the job folder and publishes it to `<KEY>/Design` in the
+wiki (updating the page if it exists), plus a page in `<KEY>/Operations` when the change needs
+operator steps. The project key comes from the `## Harbor Master` section of the repo's
+`.factory/project.md`, which the factory fills in the first time it runs with Harbor Master
+connected. The worker never blocks a merge.
+
 ## Skills
 
 Harbor Master is also the home of the team's Claude Code skills (sidebar → **Skills**). A skill
@@ -99,6 +118,18 @@ Check it with `claude mcp list`. In a session, `/mcp` shows the server and its t
 | `list_requests` | Feature requests on a project (open by default), most voted first. |
 | `create_request` | File a feature request, optionally naming who asked (`requested_for`). |
 | `triage_request` | Review, accept (creates a linked card), decline, mark duplicate or reopen a request. |
+| `wiki_tree` | Wiki folders and pages you can see, as paths (optionally under one folder). |
+| `wiki_search` | Full-text search; `#tag` words or `tag` narrow to tagged pages. |
+| `wiki_tags` | Tags in use, with page counts. |
+| `wiki_get_page` | A page's markdown, tags and version (current or older). |
+| `wiki_create_page` | New page; the folder path is created if missing. |
+| `wiki_update_page` | Save a new version (pass `base_version`; a stale one is refused). |
+| `wiki_move_page` / `wiki_delete_page` | Move a page, or move it to the trash. |
+| `wiki_history` / `wiki_comments` / `wiki_add_comment` | Versions, comments, and adding a comment or reply. |
+| `list_skills` / `get_skill` / `publish_skill` | Claude skills hosted in Harbor Master (see Skills). |
+
+Wiki paths name folders by name, and a project's folder also by its key: `SS/Design/Auth flow`
+is the page "Auth flow" in ServerSherpa's Design folder.
 
 Cards are referenced by key, e.g. `SS-42`. Moving a card is how its status changes; on the
 Feature Parity board the columns are the V3 statuses (Not built, Partial, Pending Testing,

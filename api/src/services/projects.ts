@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { syncProjectFolders } from './wiki.js';
 import { audit, diff } from '../audit.js';
 import { getProjectPerms, requireGlobal, requireProject, type Ctx } from '../auth.js';
 import { one, q, tx, type Db } from '../db.js';
@@ -84,6 +85,7 @@ export async function createProject(ctx: Ctx, input: z.infer<typeof projectInput
     for (const b of opts.boards ?? [DEFAULT_BOARD]) await createBoard(ctx, p.id, b, c);
     return p.id;
   });
+  await syncProjectFolders();
   return getProject(ctx, id);
 }
 
@@ -108,9 +110,11 @@ export async function getProject(ctx: Ctx, projectId: string) {
     `select count(*) filter (where status = 'new') as new, count(*) filter (where status in ('new', 'reviewing')) as open from feature_requests where project_id = $1`,
     [projectId],
   ))!;
+  const wiki = await one<{ id: string }>(`select id from wiki_folders where project_id = $1 and system_kind = 'project' and deleted_at is null`, [projectId]);
   return {
     ...p,
     requests,
+    wiki_folder_id: wiki?.id ?? null,
     permissions: [...perms],
     boards: boards.map((b) => ({ ...b, columns: columns.filter((c) => c.board_id === b.id) })),
     areas,
@@ -132,6 +136,7 @@ export async function updateProject(ctx: Ctx, projectId: string, patch: z.infer<
     const changes = diff(before, after, ['name', 'description', 'archived_at']);
     if (Object.keys(changes).length) await audit(ctx, { action: 'project.updated', entityType: 'project', entityId: projectId, projectId, summary: `Updated project settings (${Object.keys(changes).join(', ')})`, changes }, c);
   });
+  if (patch.name) await syncProjectFolders();
   publish({ projectId, type: 'project.updated', actor: ctx.user.name });
   return getProject(ctx, projectId);
 }

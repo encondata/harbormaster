@@ -15,6 +15,9 @@ import { getProject, listProjectsFor, projectSummary, upsertArea } from './servi
 import { createRequest, getRequestForCtx, listRequests, triage, triageInput } from './services/requests.js';
 import { getSkill, listSkills, MANIFEST, publishSkill } from './services/skills.js';
 import { listUpdates, saveUpdate, weekOf, weekTitle } from './services/updates.js';
+import {
+  addWikiComment, createPage, deletePage, getPage, listComments as listWikiComments, loadAccess, movePage, pageHistory, savePage, searchWiki, wikiTags, wikiTree,
+} from './services/wiki.js';
 
 const brief = (c: Card, full = false) => ({
   key: c.key,
@@ -64,7 +67,9 @@ function buildServer(ctx: Ctx) {
       'Every change you make is recorded in the audit history under your account. Prefer add_comment for notes about work done, ' +
       'and log_progress to add a line to the current week\'s progress update. Feature requests (keys like SS-R4) are separate from cards: ' +
       'use create_request when someone asks for something, and triage_request to accept one into a card. ' +
-      'Harbor Master is also the home of the team\'s Claude Code skills: list_skills, get_skill (install or update one under ~/.claude) and publish_skill.',
+      'Harbor Master is also the home of the team\'s Claude Code skills: list_skills, get_skill (install or update one under ~/.claude) and publish_skill. ' +
+      'The wiki (wiki_* tools) holds markdown pages in folders; every save is a new version. Each project has a folder with Design and Operations ' +
+      'subfolders, addressable by project key, e.g. "SS/Design". Read a page before updating it and pass its version as base_version.',
   });
 
   server.registerTool('list_projects', { title: 'List projects', description: 'Projects you can access, with your role and card counts.', inputSchema: {} },
@@ -351,6 +356,113 @@ function buildServer(ctx: Ctx) {
     const after = await triage(ctx, r.id, input);
     return { key: after.key, status: after.status, card: after.card_key ?? undefined };
   }));
+
+  // ---- Wiki ----
+  const pageArg = z.string().describe('Page id, or its path "Folder/Sub/Title" (a project\'s folder can be named by its key: "SS/Design/Auth flow")');
+  const folderArg = z.string().describe('Folder path, e.g. "SS/Design" or "Team/Runbooks"; "" is the top level');
+  const tagsArg = z.array(z.string()).optional().describe('Tags, e.g. ["api", "auth"]');
+
+  server.registerTool('wiki_tree', {
+    title: 'Wiki contents',
+    description: 'Folders and pages you can see, as paths. Pass a folder to list only what is under it.',
+    inputSchema: { folder: z.string().optional().describe('Only under this folder path, e.g. "SS"') },
+  }, wrap(async ({ folder }: { folder?: string }) => {
+    const t = await wikiTree(ctx);
+    const a = await loadAccess(ctx);
+    const pathOf = (id: string | null) => a.path(id).join('/');
+    let root: string | null = null;
+    if (folder?.trim()) root = await a.folderByPath(folder);
+    const under = (id: string | null) => root === null || id === root || (id !== null && a.isWithin(id, root));
+    return {
+      folders: t.folders.filter((f) => under(f.id)).map((f) => ({ path: pathOf(f.id), ...(f.project_key ? { project: f.project_key, kind: f.system_kind } : {}), can_edit: f.level === 'edit' })),
+      pages: t.pages.filter((p) => under(p.folder_id)).map((p) => ({ id: p.id, path: p.path, version: p.current_version, tags: p.tags.length ? p.tags : undefined, updated_at: p.updated_at })),
+    };
+  }));
+
+  server.registerTool('wiki_search', {
+    title: 'Search the wiki',
+    description: 'Full-text search over page titles and content. Words starting with # (or the tag argument) narrow to tagged pages.',
+    inputSchema: { query: z.string().describe('Words to find, e.g. "deploy minio" or "#runbook backup"'), tag: z.string().optional() },
+  }, wrap(async ({ query, tag }: { query: string; tag?: string }) =>
+    (await searchWiki(ctx, query, { tag, limit: 20 })).map((p) => ({ id: p.id, path: [...p.path, p.title].join('/'), tags: p.tags, snippet: p.snippet, updated_at: p.updated_at }))));
+
+  server.registerTool('wiki_tags', {
+    title: 'Wiki tags',
+    description: 'Every tag in use, with how many pages have it.',
+    inputSchema: {},
+  }, wrap(async () => wikiTags(ctx)));
+
+  server.registerTool('wiki_get_page', {
+    title: 'Read a wiki page',
+    description: 'A page\'s markdown, tags and version (the current one, or an older one). Use the returned version as base_version when you update it.',
+    inputSchema: { page: pageArg, version: z.number().int().positive().optional() },
+  }, wrap(async ({ page, version }: { page: string; version?: number }) => {
+    const p = await getPage(ctx, page, version);
+    return {
+      id: p.id, path: [...p.path, p.title].join('/'), title: p.title, tags: p.tags, project: p.project_key ?? undefined,
+      version: p.version, current_version: p.current_version, updated_by: p.updated_by_name, updated_at: p.updated_at,
+      open_comments: p.open_comments, can_edit: p.can_edit, content: p.content,
+    };
+  }));
+
+  server.registerTool('wiki_create_page', {
+    title: 'Create a wiki page',
+    description: 'A new markdown page. The folder is created if it does not exist (inside folders you can edit).',
+    inputSchema: {
+      folder: folderArg, title: z.string().describe('Page title (no "/")'), content: z.string().describe('Markdown'),
+      tags: tagsArg, summary: z.string().optional().describe('Note for the history, e.g. "First draft"'),
+    },
+  }, wrap(async ({ folder, title, content, tags, summary }: { folder: string; title: string; content: string; tags?: string[]; summary?: string }) => {
+    const a = await loadAccess(ctx);
+    const folderId = folder.trim() ? await a.folderByPath(folder, true) : null;
+    const p = await createPage(ctx, { folder_id: folderId, title, content, tags, summary }, a);
+    return { id: p.id, path: [...p.path, p.title].join('/'), version: p.version };
+  }));
+
+  server.registerTool('wiki_update_page', {
+    title: 'Update a wiki page',
+    description: 'Save a new version. Pass the version you read as base_version; if someone saved in between, this fails and you should re-read and redo the change. Omitted fields stay as they are.',
+    inputSchema: {
+      page: pageArg, base_version: z.number().int().positive(), content: z.string().optional().describe('The whole new markdown'),
+      title: z.string().optional(), tags: tagsArg, summary: z.string().optional().describe('What changed, for the history'),
+    },
+  }, wrap(async ({ page, ...rest }: any) => savePage(ctx, page, rest)));
+
+  server.registerTool('wiki_move_page', {
+    title: 'Move a wiki page',
+    description: 'Move a page to another folder (created if missing).',
+    inputSchema: { page: pageArg, folder: folderArg },
+  }, wrap(async ({ page, folder }: { page: string; folder: string }) => {
+    const a = await loadAccess(ctx);
+    await movePage(ctx, page, folder.trim() ? await a.folderByPath(folder, true) : null);
+    return 'Moved';
+  }));
+
+  server.registerTool('wiki_delete_page', {
+    title: 'Delete a wiki page',
+    description: 'Move a page to the wiki trash (a wiki manager can restore it). Only when asked.',
+    inputSchema: { page: pageArg },
+  }, wrap(async ({ page }: { page: string }) => { await deletePage(ctx, page); return 'Moved to the trash'; }));
+
+  server.registerTool('wiki_history', {
+    title: 'Wiki page history',
+    description: 'Every saved version of a page: who, when, and the edit note.',
+    inputSchema: { page: pageArg },
+  }, wrap(async ({ page }: { page: string }) => pageHistory(ctx, page)));
+
+  server.registerTool('wiki_comments', {
+    title: 'Comments on a wiki page',
+    description: 'Comments and replies on a page, including whether each thread is resolved.',
+    inputSchema: { page: pageArg },
+  }, wrap(async ({ page }: { page: string }) => (await listWikiComments(ctx, page)).map((c: any) => ({
+    id: c.id, reply_to: c.parent_id ?? undefined, author: c.author_name, body: c.body, on_version: c.page_version, at: c.created_at, resolved: c.resolved_at ? true : undefined,
+  }))));
+
+  server.registerTool('wiki_add_comment', {
+    title: 'Comment on a wiki page',
+    description: 'Add a comment, or reply to one (reply_to = its id).',
+    inputSchema: { page: pageArg, body: z.string().describe('Markdown'), reply_to: z.string().optional() },
+  }, wrap(async ({ page, body, reply_to }: { page: string; body: string; reply_to?: string }) => addWikiComment(ctx, page, { body, parent_id: reply_to ?? null })));
 
   server.registerTool('list_skills', {
     title: 'List Claude skills',

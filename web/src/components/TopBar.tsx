@@ -48,6 +48,10 @@ function Crumbs() {
     const names: Record<string, string> = { users: 'Users', roles: 'Roles & permissions', audit: 'Audit log' };
     crumbs.push({ label: 'Administration' }, { label: names[parts[1]] ?? parts[1], to: `/admin/${parts[1]}` });
     if (parts[2]) crumbs.push({ label: 'User' });
+  } else if (parts[0] === 'wiki') {
+    crumbs.push({ label: 'Wiki', to: '/wiki' });
+    const section: Record<string, string> = { page: 'Page', folder: 'Folder', new: 'New page', search: 'Search', trash: 'Trash' };
+    if (parts[1]) crumbs.push({ label: parts[3] === 'edit' ? 'Edit' : parts[3] === 'history' ? 'History' : section[parts[1]] ?? parts[1] });
   } else if (parts[0] === 'skills') {
     crumbs.push({ label: 'Skills', to: '/skills' });
     if (parts[1]) crumbs.push({ label: decodeURIComponent(parts[1]) });
@@ -72,6 +76,7 @@ type SearchResults = {
   boards: { key: string; name: string; project_key: string; project_name: string }[];
   cards: { key: string; title: string; board_key: string; board_name: string; column_name: string; project_key: string }[];
   requests: { key: string; title: string; status: string; project_key: string }[];
+  wiki?: { id: string; title: string; path: string; tags: string[] }[];
 };
 type Item = { id: string; group: string; label: ReactNode; text: string; meta?: string; run: () => void };
 
@@ -92,6 +97,7 @@ function useSearchItems(text: string, go: (to: string) => void): { items: Item[]
   if (q.length >= 2 && d) {
     for (const c of d.cards) items.push({ id: `c${c.key}`, group: 'Cards', label: <><span className="mono faint">{c.key}</span> {c.title}</>, text: c.title, meta: `${c.board_name} · ${c.column_name}`, run: () => go(`/p/${c.project_key}/b/${c.board_key}?card=${c.key}`) });
     for (const r of d.requests) items.push({ id: `r${r.key}`, group: 'Requests', label: <><span className="mono faint">{r.key}</span> {r.title}</>, text: r.title, meta: r.status, run: () => go(`/p/${r.project_key}/requests?request=${r.key}`) });
+    for (const w of d.wiki ?? []) items.push({ id: `w${w.id}`, group: 'Wiki', label: w.title, text: w.title, meta: w.path || 'Wiki', run: () => go(`/wiki/page/${w.id}`) });
     for (const p of d.projects) items.push({ id: `p${p.key}`, group: 'Projects', label: p.name, text: p.name, meta: p.key, run: () => go(`/p/${p.key}`) });
     for (const b of d.boards) items.push({ id: `b${b.project_key}${b.key}`, group: 'Boards', label: b.name, text: b.name, meta: b.project_name, run: () => go(`/p/${b.project_key}/b/${b.key}`) });
   }
@@ -174,6 +180,9 @@ function CommandPalette({ me, onClose }: { me: Me; onClose: () => void }) {
       c.push({ id: `pr-${p.key}`, group: 'Go to', label: `${p.name} › Requests`, text: `${p.name} ${p.key} requests feature`, run: () => go(`/p/${p.key}/requests`) });
       c.push({ id: `pu-${p.key}`, group: 'Go to', label: `${p.name} › Updates`, text: `${p.name} ${p.key} updates weekly progress`, run: () => go(`/p/${p.key}/updates`) });
     }
+    c.push({ id: 'wiki', group: 'Go to', label: 'Wiki', text: 'wiki docs documentation pages design operations', run: () => go('/wiki') });
+    c.push({ id: 'wiki-new', group: 'Go to', label: 'New wiki page', text: 'new wiki page write doc', run: () => go('/wiki/new') });
+    c.push({ id: 'skills', group: 'Go to', label: 'Skills', text: 'skills claude factory', run: () => go('/skills') });
     c.push({ id: 'profile', group: 'Go to', label: 'Profile', text: 'profile account password tokens', run: () => go('/account') });
     c.push({ id: 'claude', group: 'Go to', label: 'Connect Claude', text: 'claude connect mcp token setup', run: () => go('/account?tab=claude') });
     c.push({ id: 'settings', group: 'Go to', label: 'Settings', text: 'settings preferences theme', run: () => go('/account?tab=preferences') });

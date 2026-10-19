@@ -52,7 +52,7 @@ export type Board = { id: string; key: string; name: string; description: string
 
 export type Area = { id: string; name: string; sort: number; priority: string; expected_date: string; notes: string; updated_at: string };
 
-export type Project = { id: string; key: string; name: string; description: string; archived_at: string | null; permissions: string[]; boards: Board[]; areas: Area[]; requests: { new: number; open: number } };
+export type Project = { id: string; key: string; name: string; description: string; archived_at: string | null; permissions: string[]; boards: Board[]; areas: Area[]; requests: { new: number; open: number }; wiki_folder_id?: string | null };
 
 export type ProjectListItem = { id: string; key: string; name: string; description: string; archived_at: string | null; my_role: string | null; card_count: number; member_count: number };
 

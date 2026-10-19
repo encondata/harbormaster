@@ -19,7 +19,9 @@ import searchRoutes from './routes/search.js';
 import meRoutes from './routes/me.js';
 import oauthRoutes from './routes/oauth.js';
 import skillRoutes from './routes/skills.js';
+import wikiRoutes from './routes/wiki.js';
 import { startScheduler } from './scheduler.js';
+import { syncProjectFolders } from './services/wiki.js';
 import { ensureBucket, storageHealthy } from './storage.js';
 
 const trustHops = Number(process.env.TRUST_PROXY_HOPS ?? 2);
@@ -94,6 +96,7 @@ await app.register(requestRoutes);
 await app.register(searchRoutes);
 await app.register(meRoutes);
 await app.register(skillRoutes);
+await app.register(wikiRoutes);
 await app.register(oauthRoutes);
 await app.register(mcpRoutes);
 
@@ -101,6 +104,7 @@ const log = (m: string) => app.log.info(m);
 await migrate(log);
 await ensureBucket(log);
 await bootstrap(log);
+await syncProjectFolders(log);
 
 await app.listen({ port: config.port, host: '0.0.0.0' });
 const scheduler = startScheduler(log);

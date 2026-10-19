@@ -20,6 +20,14 @@ made it and how.
 - **Progress updates**: the sheet's *Weekly Summary* tab, one entry per week.
 - **Feature requests** per project: members (and Claude) submit, vote and comment; anyone with
   triage rights reviews them and accepts them into a linked card, declines with a reason, or merges duplicates.
+- **Wiki** (sidebar → Wiki): markdown pages in nested folders, every save kept as a version in
+  MinIO (history, side-by-side diffs, restore), comments with replies and resolve, tags, images
+  and files, search, and a trash. Each project gets its own folder with **Design** and
+  **Operations** inside; its access follows project membership. Other folders can be
+  restricted or opened up per person or role. Claude reads and writes it through MCP, and the
+  factory's design-doc worker publishes each job's design there.
+- **Skills** (sidebar → Skills): Claude Code skills hosted here and installed on any machine
+  that's signed in. See [docs/CLAUDE.md](docs/CLAUDE.md#skills).
 - **Spreadsheet sync**: import or re-sync from the Google Sheet link (or an .xlsx export).
   Re-running only changes what changed in the sheet.
 - **Daily Google Sheet export**: each project can copy its summary, boards, weekly updates and
@@ -34,7 +42,7 @@ made it and how.
   source (web, Claude/MCP, API token, sheet import), token name and client IP.
 - **Live updates**: when Claude (or anyone) changes a card, open boards refresh on their own.
 - **Claude integration**: an MCP server at `/api/mcp` with tools to find, create, edit and
-  move cards, comment, update areas and log weekly progress. See [docs/CLAUDE.md](docs/CLAUDE.md).
+  move cards, comment, update areas, log weekly progress, and read and write the wiki. See [docs/CLAUDE.md](docs/CLAUDE.md).
 
 ## Architecture
 
