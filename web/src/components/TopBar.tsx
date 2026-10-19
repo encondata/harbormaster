@@ -48,7 +48,7 @@ function Crumbs() {
     const names: Record<string, string> = { users: 'Users', roles: 'Roles & permissions', audit: 'Audit log' };
     crumbs.push({ label: 'Administration' }, { label: names[parts[1]] ?? parts[1], to: `/admin/${parts[1]}` });
     if (parts[2]) crumbs.push({ label: 'User' });
-  } else if (parts[0] === 'account') crumbs.push({ label: 'Account', to: '/account' }, { label: sp.get('tab') === 'preferences' ? 'Preferences' : sp.get('tab') === 'notifications' ? 'Notifications' : sp.get('tab') === 'history' ? 'History' : 'My profile' });
+  } else if (parts[0] === 'account') crumbs.push({ label: 'Account', to: '/account' }, { label: ({ claude: 'Claude', preferences: 'Preferences', notifications: 'Notifications', history: 'History' } as Record<string, string>)[sp.get('tab') ?? ''] ?? 'My profile' });
   else crumbs.push({ label: 'Projects' }, { label: 'All projects' });
   return (
     <nav className="crumbs" aria-label="Breadcrumb">
@@ -172,6 +172,7 @@ function CommandPalette({ me, onClose }: { me: Me; onClose: () => void }) {
       c.push({ id: `pu-${p.key}`, group: 'Go to', label: `${p.name} › Updates`, text: `${p.name} ${p.key} updates weekly progress`, run: () => go(`/p/${p.key}/updates`) });
     }
     c.push({ id: 'profile', group: 'Go to', label: 'Profile', text: 'profile account password tokens', run: () => go('/account') });
+    c.push({ id: 'claude', group: 'Go to', label: 'Connect Claude', text: 'claude connect mcp token setup', run: () => go('/account?tab=claude') });
     c.push({ id: 'settings', group: 'Go to', label: 'Settings', text: 'settings preferences theme', run: () => go('/account?tab=preferences') });
     if (can('admin.users')) c.push({ id: 'users', group: 'Go to', label: 'Users', text: 'users admin people', run: () => go('/admin/users') });
     if (can('admin.roles')) c.push({ id: 'roles', group: 'Go to', label: 'Roles & permissions', text: 'roles permissions admin', run: () => go('/admin/roles') });
@@ -284,17 +285,17 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
 }
 
 function ClaudeDialog({ onClose }: { onClose: () => void }) {
-  const origin = window.location.origin;
+  const nav = useNavigate();
   return (
-    <Modal title="Work with Claude" onClose={onClose}>
+    <Modal title="Work with Claude" onClose={onClose} footer={
+      <>
+        <button className="btn" onClick={onClose}>Close</button>
+        <button className="btn primary" onClick={() => { onClose(); nav('/account?tab=claude'); }}>Set up Claude</button>
+      </>
+    }>
       <div className="stack-sm small">
-        <p className="muted" style={{ margin: 0 }}>Claude reads and updates Harbor Master through its MCP server: finding cards, moving them, commenting, filing feature requests and logging weekly progress. Everything it does is recorded under the Claude account.</p>
-        <ol style={{ paddingLeft: 18, margin: 0, display: 'grid', gap: 6 }}>
-          <li>An administrator creates a token on <b>Users → Claude → New token</b>.</li>
-          <li>On the machine where you use Claude Code, run:</li>
-        </ol>
-        <div className="secret">claude mcp add --transport http --scope user harbormaster {origin}/api/mcp --header "Authorization: Bearer &lt;token&gt;"</div>
-        <div className="faint">Then ask Claude things like "move SS-469 to Done with a note" or "log today's progress on ServerSherpa". See docs/CLAUDE.md for the full list of tools.</div>
+        <p className="muted" style={{ margin: 0 }}>Claude Code can read and update Harbor Master for you: find and move cards, comment, file feature requests and log weekly progress. Everything it does is recorded in the history.</p>
+        <p className="muted" style={{ margin: 0 }}><b>Set up Claude</b> creates your personal connection, gives you the one command to run, and writes the instructions to paste into a project's CLAUDE.md.</p>
       </div>
     </Modal>
   );

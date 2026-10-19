@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import AuditList from '../components/AuditList';
+import ConnectClaude from '../components/ConnectClaude';
 import { applyTheme, useTheme, type Theme } from '../components/Layout';
 import Tokens from '../components/Tokens';
 import { Avatar, ErrorBox, Modal, Spinner, useToast } from '../components/ui';
@@ -19,7 +20,7 @@ type Profile = {
 };
 type Details = Pick<Profile, 'first_name' | 'last_name' | 'preferred_name' | 'job_title' | 'contact_email' | 'phone' | 'address_line1' | 'address_line2' | 'city' | 'region' | 'postal_code' | 'country'>;
 
-const TABS = [['profile', 'Profile'], ['preferences', 'Preferences'], ['notifications', 'Notifications'], ['history', 'History']] as const;
+const TABS = [['profile', 'Profile'], ['claude', 'Claude'], ['preferences', 'Preferences'], ['notifications', 'Notifications'], ['history', 'History']] as const;
 export type ProfileTab = (typeof TABS)[number][0];
 export const PROFILE_TAB_LABEL: Record<string, string> = Object.fromEntries(TABS);
 
@@ -234,10 +235,11 @@ export default function Account() {
             <EditDetails p={p} onSaved={changed} />
             <div className="stack">
               <Security p={p} />
-              <Tokens base="/api/me/tokens" title="Your API tokens" showSetup />
+              <Tokens base="/api/me/tokens" title="Your API tokens" />
             </div>
           </div>
         )}
+        {tab === 'claude' && <ConnectClaude />}
         {tab === 'preferences' && <Preferences />}
         {tab === 'notifications' && <Notifications />}
         {tab === 'history' && <AuditList endpoint="/api/me/history" showProject />}
