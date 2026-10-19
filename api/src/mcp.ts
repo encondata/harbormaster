@@ -13,6 +13,7 @@ import { addComment, cardHistory, createCard, getCardForCtx, listCards, listComm
 import { resolveArea, resolveBoard, resolveProject } from './services/common.js';
 import { getProject, listProjectsFor, projectSummary, upsertArea } from './services/projects.js';
 import { createRequest, getRequestForCtx, listRequests, triage, triageInput } from './services/requests.js';
+import { getSkill, listSkills, MANIFEST, publishSkill } from './services/skills.js';
 import { listUpdates, saveUpdate, weekOf, weekTitle } from './services/updates.js';
 
 const brief = (c: Card, full = false) => ({
@@ -62,7 +63,8 @@ function buildServer(ctx: Ctx) {
       'Start with get_project to learn the boards, column names, card fields and areas. Moving a card to another column is how status changes. ' +
       'Every change you make is recorded in the audit history under your account. Prefer add_comment for notes about work done, ' +
       'and log_progress to add a line to the current week\'s progress update. Feature requests (keys like SS-R4) are separate from cards: ' +
-      'use create_request when someone asks for something, and triage_request to accept one into a card.',
+      'use create_request when someone asks for something, and triage_request to accept one into a card. ' +
+      'Harbor Master is also the home of the team\'s Claude Code skills: list_skills, get_skill (install or update one under ~/.claude) and publish_skill.',
   });
 
   server.registerTool('list_projects', { title: 'List projects', description: 'Projects you can access, with your role and card counts.', inputSchema: {} },
@@ -348,6 +350,55 @@ function buildServer(ctx: Ctx) {
     const input = triageInput.parse(rest);
     const after = await triage(ctx, r.id, input);
     return { key: after.key, status: after.status, card: after.card_key ?? undefined };
+  }));
+
+  server.registerTool('list_skills', {
+    title: 'List Claude skills',
+    description: 'Claude Code skills hosted in Harbor Master, with their latest version. Compare with ~/.claude/skills/<name>/' + MANIFEST + ' to see what is installed and whether it is current.',
+    inputSchema: {},
+  }, wrap(async () => (await listSkills()).map((s: any) => ({
+    name: s.name, version: s.version, description: s.description, files: s.file_count, published_by: s.published_by_name, published_at: s.published_at, notes: s.notes || undefined,
+  }))));
+
+  server.registerTool('get_skill', {
+    title: 'Get a Claude skill (to install or update it)',
+    description:
+      'Every file of a skill version, with paths relative to ~/.claude. To install or update on this machine: ' +
+      '(1) if ~/.claude/skills/<name>/' + MANIFEST + ' exists, delete each file in its "files" list that is not in this version; ' +
+      '(2) write every returned file to ~/.claude/<path> with exactly the given content, creating folders, and chmod +x the ones marked executable ' +
+      '(the ' + MANIFEST + ' manifest is included and records the version); ' +
+      '(3) tell the user what was installed. Skills and agents that do not show up yet load in a new Claude Code session.',
+    inputSchema: {
+      name: z.string().describe('Skill name, e.g. "factory"'),
+      version: z.number().int().positive().optional().describe('A specific version; default latest'),
+    },
+  }, wrap(async ({ name, version }: { name: string; version?: number }) => {
+    const s = await getSkill(name, version);
+    return { name: s.name, version: s.version, latest_version: s.latest_version, description: s.description, notes: s.notes || undefined, published_by: s.published_by_name, published_at: s.published_at, files: s.files };
+  }));
+
+  server.registerTool('publish_skill', {
+    title: 'Publish a Claude skill',
+    description:
+      'Upload a new version of a skill from this machine so every other machine can install it (needs the skills.publish permission). ' +
+      'Read each file from ~/.claude and pass its exact content: everything under skills/<name>/ plus any agents/*.md or commands/*.md it uses. ' +
+      'Leave out caches (__pycache__, .DS_Store) and the ' + MANIFEST + ' file. Publishing identical files keeps the current version.',
+    inputSchema: {
+      name: z.string().describe('Skill folder name under ~/.claude/skills'),
+      notes: z.string().optional().describe('What changed in this version'),
+      files: z.array(z.object({
+        path: z.string().describe('Relative to ~/.claude, e.g. "skills/factory/SKILL.md" or "agents/factory-builder.md"'),
+        content: z.string(),
+        executable: z.boolean().optional(),
+      })),
+    },
+  }, wrap(async (args: any) => {
+    const r = await publishSkill(ctx, args);
+    if (!r.unchanged) {
+      // Keep this machine's manifest in step with what was just published.
+      return { ...r, next: `Write ~/.claude/skills/${r.name}/${MANIFEST} from get_skill so this machine shows as current.` };
+    }
+    return r;
   }));
 
   return server;
