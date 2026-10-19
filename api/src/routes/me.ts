@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import { z } from 'zod';
 import { audit, diff } from '../audit.js';
 import { requireUser } from '../auth.js';
+import { config } from '../config.js';
 import { one, q } from '../db.js';
 import { badRequest, notFound } from '../errors.js';
 import { deleteObject, getObject, putObject } from '../storage.js';
@@ -35,6 +36,12 @@ export const displayName = (p: { preferred_name: string; first_name: string; las
   (p.preferred_name ? `${p.preferred_name} ${p.last_name}` : `${p.first_name} ${p.last_name}`).trim();
 
 export default async function meRoutes(app: FastifyInstance) {
+  // Where this server is reached, for the "connect Claude" commands.
+  app.get('/api/meta', async (req) => {
+    requireUser(req);
+    return { public_url: config.publicUrl, mcp_url: `${config.publicUrl}/api/mcp`, token_prefix: 'hsl_' };
+  });
+
   app.get('/api/me/profile', async (req) => {
     const ctx = requireUser(req);
     const u = await one(

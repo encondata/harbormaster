@@ -206,6 +206,14 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
 .sec-list dd { margin: 0; font-weight: 550; }
 .sec-list dd .faint, .sec-list dd .small { font-weight: 400; }
 
+/* ---------- Connect Claude ---------- */
+.claude-step { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 14px; }
+.claude-step-n { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 750; display: grid; place-items: center; }
+.claude-step-title { font-size: 15px; text-transform: none; letter-spacing: 0; color: var(--text); margin-top: 4px; }
+.copy-block { position: relative; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-sunken); }
+.copy-block pre { margin: 0; padding: 12px 14px; padding-right: 72px; font-family: var(--mono); font-size: 12px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; user-select: all; }
+.copy-block .btn { position: absolute; top: 8px; right: 8px; }
+
 /* ---------- Header bar ---------- */
 .appbar { flex: none; height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 16px 0 24px; background: var(--surface); border-bottom: 1px solid var(--border); position: relative; z-index: 20; }
 .crumbs { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 15px; white-space: nowrap; overflow: hidden; }

@@ -5,7 +5,8 @@ import { dateTime, timeAgo } from '../lib/format';
 import { Confirm, ErrorBox, Modal } from './ui';
 
 export function ClaudeSetup({ token }: { token: string }) {
-  const origin = window.location.origin;
+  const meta = useQuery({ queryKey: ['meta'], queryFn: () => api.get<{ public_url: string }>('/api/meta'), staleTime: Infinity });
+  const origin = meta.data?.public_url ?? window.location.origin;
   return (
     <div className="stack-sm small">
       <div><b>Connect Claude Code</b> (run once on the machine where you use Claude):</div>

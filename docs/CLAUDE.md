@@ -1,28 +1,34 @@
 # Claude integration
 
-Claude updates the boards as the **Claude** service account (created automatically, an
-*Editor* on ServerSherpa). Everything it does shows in card history and the audit log with
-source `mcp` and the token's name.
+Claude Code connects to Harbor Master through its MCP server at `<PUBLIC_URL>/api/mcp`
+(for the shared install: `https://harbormaster.hackspacelabs.com/api/mcp`).
 
-## 1. Create a token
+## The quick way: Profile → Claude
 
-In the app: **Users → Claude → API tokens → New token**. Name it after where it will be
-used (e.g. "Claude Code on Jimmy's laptop"). Copy it; it is shown once.
+In the app, open your name (bottom of the sidebar) → **Profile** → **Claude** tab, or the sparkle
+button in the header. It:
 
-To let Claude work on another project, add the Claude account to that project
-(**Project → Settings → Members**) with the Editor role.
+1. creates a personal connection token (Claude then acts as you, with your permissions, and its
+   changes show in history under your name marked "mcp");
+2. shows the one `claude mcp add …` command to run on each machine where you use Claude Code;
+3. writes the instructions to paste into a project's `CLAUDE.md`, using that project's real boards
+   and column names.
 
-## 2. Connect Claude Code
+## Shared automation: the Claude service account
+
+For automation that shouldn't act as a person (scheduled jobs, the factory later), an administrator
+can create a token for the **Claude** service account instead: **Users → Claude → New token**. Add
+the Claude account to each project it should touch (Settings → Members, Editor role).
+
+Manual command, if needed:
 
 ```bash
-claude mcp add --transport http --scope user harbormaster https://kanban.example.com/api/mcp --header "Authorization: Bearer hsl_xxxxxxxx_…"
+claude mcp add --transport http --scope user harbormaster https://harbormaster.hackspacelabs.com/api/mcp --header "Authorization: Bearer hsl_xxxxxxxx_…"
 ```
 
 Check it with `claude mcp list`. In a session, `/mcp` shows the server and its tools.
 
-Any MCP client that supports Streamable HTTP with a custom header works the same way.
-
-## 3. Tools
+## Tools
 
 | Tool | What it does |
 |---|---|
@@ -48,10 +54,10 @@ Cards are referenced by key, e.g. `SS-42`. Moving a card is how its status chang
 Feature Parity board the columns are the V3 statuses (Not built, Partial, Pending Testing,
 Complete, Retired…), so moving a card updates the parity score.
 
-## 4. Suggested instructions for the ServerSherpa repository
+## Instructions for a project's repository
 
-Add something like this to the ServerSherpa repo's `CLAUDE.md` so Claude keeps the board
-current as it works:
+Profile → Claude generates this for any project with its real boards and columns. For reference,
+the shape is:
 
 ```markdown
 ## Progress tracking (Harbor Master)
@@ -70,7 +76,7 @@ Development progress lives in Harbor Master (MCP server `harbormaster`, project 
 - Never archive cards or change areas' expected dates unless asked.
 ```
 
-## 5. REST API
+## REST API
 
 The same token works on the REST API (`Authorization: Bearer …`). Useful endpoints:
 
