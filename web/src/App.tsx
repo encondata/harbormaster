@@ -19,6 +19,7 @@ import Summary from './pages/project/Summary';
 import Updates from './pages/project/Updates';
 import Projects from './pages/Projects';
 import Skills from './pages/Skills';
+import Wiki from './pages/Wiki';
 
 /** Signed in while on /login: continue to the page the user was heading to. */
 function AfterLogin() {
@@ -43,6 +44,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<Projects />} />
         <Route path="account" element={<Account />} />
+        <Route path="wiki/*" element={<Wiki />} />
         <Route path="skills" element={<Skills />} />
         <Route path="skills/:name" element={<Skills />} />
         <Route path="settings" element={<Navigate to="/account?tab=preferences" replace />} />

@@ -95,6 +95,7 @@ export default function Layout() {
         <div className="brand"><span className="logo" aria-hidden="true" /> Harbor Master</div>
         <nav className="nav">
           <NavLink to="/" end>All projects</NavLink>
+          <NavLink to="/wiki">Wiki</NavLink>
           <NavLink to="/skills">Skills</NavLink>
           <div className="nav-label">Projects</div>
           {projects.map((p) => (

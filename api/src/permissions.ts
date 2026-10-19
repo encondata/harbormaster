@@ -9,6 +9,8 @@ export const GLOBAL_PERMISSIONS = {
   'projects.create': 'Create new projects',
   'projects.all': 'Full access to every project, as if Owner on each',
   'skills.publish': 'Publish Claude skills that every signed-in machine installs',
+  'wiki.edit': 'Create and edit wiki pages and folders, upload files and restore old versions',
+  'wiki.manage': 'Delete and restore wiki pages and folders, set folder access and moderate comments',
 } as const;
 
 export const PROJECT_PERMISSIONS = {
@@ -27,6 +29,7 @@ export const PROJECT_PERMISSIONS = {
   'update.write': 'Write and edit progress updates',
   'request.create': 'Submit feature requests, vote and comment on them',
   'request.triage': 'Review, accept (turn into a card), decline or close feature requests',
+  'wiki.write': "Create and edit pages in the project's wiki folder",
 } as const;
 
 export type GlobalPermission = keyof typeof GLOBAL_PERMISSIONS;
@@ -53,6 +56,12 @@ export const BUILTIN_ROLES: { name: string; scope: 'global' | 'project'; descrip
     description: 'Read-only access to the full audit log.',
     permissions: ['admin.audit'],
   },
+  {
+    name: 'Wiki Editor',
+    scope: 'global',
+    description: 'Create and edit wiki pages and folders.',
+    permissions: ['wiki.edit'],
+  },
   { name: 'Owner', scope: 'project', description: 'Everything on the project, including settings and members.', permissions: allProject },
   {
     name: 'Editor',
@@ -64,7 +73,7 @@ export const BUILTIN_ROLES: { name: string; scope: 'global' | 'project'; descrip
     name: 'Contributor',
     scope: 'project',
     description: 'Create, edit and move cards and comment. Cannot archive or write updates.',
-    permissions: ['project.view', 'project.audit', 'card.create', 'card.edit', 'card.move', 'card.comment', 'attachment.upload', 'request.create'],
+    permissions: ['project.view', 'project.audit', 'card.create', 'card.edit', 'card.move', 'card.comment', 'attachment.upload', 'request.create', 'wiki.write'],
   },
   {
     name: 'Requester',
