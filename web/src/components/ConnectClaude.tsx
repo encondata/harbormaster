@@ -56,7 +56,7 @@ export function projectInstructions(p: Project, meta: Meta) {
   const done = main?.columns.find((c) => c.category === 'done')?.name ?? 'Done';
   return `## Progress tracking (Harbor Master)
 
-Work for this repo is tracked in Harbor Master (${meta.public_url}), project **${p.name}** (key \`${p.key}\`), through the MCP server \`harbormaster\`.
+Work for this project is tracked in Harbor Master (${meta.public_url}), project **${p.name}** (key \`${p.key}\`), through the Harbor Master tools (MCP server \`harbormaster\`).
 
 Boards and their columns:
 ${boardLines}
@@ -89,16 +89,16 @@ function ProjectSnippet({ meta }: { meta: Meta }) {
   );
 }
 
-export default function ConnectClaude() {
+type App = 'desktop' | 'code';
+
+/** Claude Code with a pasted token: for servers and other places without a browser to sign in. */
+function TokenSetup({ meta }: { meta: Meta }) {
   const qc = useQueryClient();
-  const meta = useQuery({ queryKey: ['meta'], queryFn: () => api.get<Meta>('/api/meta'), staleTime: Infinity });
   const [name, setName] = useState('Claude Code');
   const [days, setDays] = useState('365');
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
-  if (!meta.data) return <div className="card-box"><div className="bd faint">Loading…</div></div>;
-  const m = meta.data;
   const create = async () => {
     setBusy(true); setErr(null);
     try {
@@ -112,42 +112,80 @@ export default function ConnectClaude() {
     }
   };
   return (
+    <div className="stack-sm">
+      {token ? (
+        <div className="ok-box">Token created. It's in the command below and won't be shown again.</div>
+      ) : (
+        <div className="row" style={{ flexWrap: 'wrap', gap: 10, alignItems: 'end' }}>
+          <label className="field" style={{ flex: '1 1 200px' }}>Token name
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Where it'll be used, e.g. Claude Code on the devbox" /></label>
+          <label className="field" style={{ width: 150 }}>Expires
+            <select className="input" value={days} onChange={(e) => setDays(e.target.value)}>
+              <option value="90">In 90 days</option><option value="365">In 1 year</option><option value="">Never</option>
+            </select>
+          </label>
+          <button className="btn" disabled={busy} onClick={create}>{busy ? 'Creating…' : 'Create token'}</button>
+        </div>
+      )}
+      <ErrorBox error={err} />
+      <CopyBlock text={mcpCommand(meta, token ?? '<your token>')} label="Command" />
+    </div>
+  );
+}
+
+export default function ConnectClaude() {
+  const meta = useQuery({ queryKey: ['meta'], queryFn: () => api.get<Meta>('/api/meta'), staleTime: Infinity });
+  const [app, setApp] = useState<App>('desktop');
+  if (!meta.data) return <div className="card-box"><div className="bd faint">Loading…</div></div>;
+  const m = meta.data;
+  return (
     <div className="profile-cols">
       <div className="card-box">
-        <div className="hd"><div className="grow"><h2>Connect Claude</h2><div className="faint small" style={{ marginTop: 2 }}>Lets Claude Code read and update Harbor Master as you, with your permissions. Its changes show in history under your name, marked "mcp".</div></div></div>
+        <div className="hd"><div className="grow"><h2>Connect Claude</h2><div className="faint small" style={{ marginTop: 2 }}>Lets Claude read and update Harbor Master as you, with your permissions. Its changes show in history under your name, marked "mcp".</div></div></div>
         <div className="bd stack">
-          <Step n={1} title="Create a connection token">
-            {token ? (
-              <div className="ok-box">Token created. It's in the command below and won't be shown again.</div>
-            ) : (
-              <div className="row" style={{ flexWrap: 'wrap', gap: 10, alignItems: 'end' }}>
-                <label className="field" style={{ flex: '1 1 200px' }}>Name
-                  <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Where it'll be used, e.g. Claude Code on my laptop" /></label>
-                <label className="field" style={{ width: 150 }}>Expires
-                  <select className="input" value={days} onChange={(e) => setDays(e.target.value)}>
-                    <option value="90">In 90 days</option><option value="365">In 1 year</option><option value="">Never</option>
-                  </select>
-                </label>
-                <button className="btn primary" disabled={busy} onClick={create}>{busy ? 'Creating…' : 'Create token'}</button>
-              </div>
-            )}
-            <ErrorBox error={err} />
-          </Step>
-          <Step n={2} title="Run this where you use Claude Code">
-            <CopyBlock text={mcpCommand(m, token ?? '<your token>')} label="Command" />
-            <div className="faint small">Run it once per machine. <code>claude mcp list</code> should then show <b>harbormaster</b> as connected. To remove it later: <code>claude mcp remove harbormaster</code>.</div>
-          </Step>
-          <Step n={3} title="Tell Claude about a project">
-            <div className="faint small">Paste this into the <code>CLAUDE.md</code> of the project's repository, so Claude keeps the board up to date as it works.</div>
-            <ProjectSnippet meta={m} />
-          </Step>
+          <div className="seg" role="radiogroup" aria-label="Which Claude" style={{ justifySelf: 'start', alignSelf: 'start' }}>
+            <button type="button" role="radio" aria-checked={app === 'desktop'} className={app === 'desktop' ? 'on' : ''} onClick={() => setApp('desktop')}>Claude Desktop and claude.ai</button>
+            <button type="button" role="radio" aria-checked={app === 'code'} className={app === 'code' ? 'on' : ''} onClick={() => setApp('code')}>Claude Code</button>
+          </div>
+          {app === 'desktop' ? (
+            <>
+              <Step n={1} title="Add Harbor Master as a connector">
+                <div className="small muted">In Claude, open <b>Settings → Connectors → Add custom connector</b>. Name it <b>Harbor Master</b> and paste this URL:</div>
+                <CopyBlock text={m.mcp_url} label="URL" />
+                <div className="faint small">On a Team or Enterprise plan, an owner adds it once under Organization settings → Connectors, then everyone connects their own account. The connector also works in the Claude mobile apps.</div>
+              </Step>
+              <Step n={2} title="Sign in and allow it">
+                <div className="small muted">Click <b>Connect</b>. A Harbor Master page opens: sign in if asked, then click <b>Allow</b>. Claude stays connected until you disconnect it here (it shows under <i>Your connections and tokens</i>) or in Claude.</div>
+              </Step>
+              <Step n={3} title="Tell Claude how to use it (optional)">
+                <div className="faint small">Paste this into a Claude <b>Project's instructions</b> so chats in that project keep the board up to date. In a single chat, you can also just ask, e.g. "what's open on StreetSweep?"</div>
+                <ProjectSnippet meta={m} />
+              </Step>
+            </>
+          ) : (
+            <>
+              <Step n={1} title="Add Harbor Master">
+                <CopyBlock text={`claude mcp add --transport http --scope user harbormaster ${m.mcp_url}`} label="Command" />
+                <div className="faint small">Then in Claude Code run <code>/mcp</code>, choose <b>harbormaster</b> and <b>Authenticate</b>. A browser opens to sign in and allow it. This also covers the Code tab in Claude Desktop on the same machine.</div>
+                <details className="small">
+                  <summary className="muted" style={{ cursor: 'pointer' }}>No browser on that machine? Use a token instead</summary>
+                  <div style={{ marginTop: 8 }}><TokenSetup meta={m} /></div>
+                </details>
+                <div className="faint small"><code>claude mcp list</code> shows whether it's connected. To remove it: <code>claude mcp remove harbormaster</code>.</div>
+              </Step>
+              <Step n={2} title="Tell Claude about a project">
+                <div className="faint small">Paste this into the <code>CLAUDE.md</code> of the project's repository, so Claude keeps the board up to date as it works.</div>
+                <ProjectSnippet meta={m} />
+              </Step>
+            </>
+          )}
         </div>
       </div>
       <div className="stack">
         <div className="card-box">
           <div className="hd"><h2>Scripts and other tools</h2></div>
           <div className="bd stack-sm small">
-            <div className="muted">The same token works on the REST API. Keep it in an environment variable, not in code:</div>
+            <div className="muted">Scripts use the REST API with an API token (create one under Claude Code → Use a token instead, or with New token below). Keep it in an environment variable, not in code:</div>
             <CopyBlock label="Example" text={`export HARBORMASTER_TOKEN=<your token>
 
 # Find cards

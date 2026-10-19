@@ -38,7 +38,11 @@ export async function issueToken(ctx: Ctx, userId: string, input: z.infer<typeof
 }
 
 export const listTokens = (userId: string) =>
-  q(`select id, name, prefix, created_at, last_used_at, expires_at, revoked_at from api_tokens where user_id = $1 order by revoked_at nulls first, created_at desc`, [userId]);
+  // Connector rows (OAuth) rotate a short-lived access token; what expires is the connection itself.
+  q(`select t.id, t.name, t.prefix, t.created_at, t.last_used_at, coalesce(t.refresh_expires_at, t.expires_at) as expires_at, t.revoked_at,
+            c.name as connector
+       from api_tokens t left join oauth_clients c on c.id = t.oauth_client_id
+      where t.user_id = $1 order by t.revoked_at nulls first, t.created_at desc`, [userId]);
 
 export async function revokeToken(ctx: Ctx, userId: string, tokenId: string) {
   const row = await one(`update api_tokens set revoked_at = coalesce(revoked_at, now()) where id = $1 and user_id = $2 returning name, prefix`, [tokenId, userId]);

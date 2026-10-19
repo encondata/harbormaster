@@ -10,7 +10,7 @@ import { one, q } from '../db.js';
 
 export const googleEnabled = () => !!(config.google.clientId && config.google.clientSecret);
 const redirectUri = () => `${config.publicUrl}/api/auth/google/callback`;
-const safeNext = (n: unknown) => (typeof n === 'string' && n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/api/') ? n.slice(0, 500) : '/');
+const safeNext = (n: unknown) => (typeof n === 'string' && n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/api/') ? n.slice(0, 2000) : '/');
 
 let jwksCache: { keys: any[]; at: number } | null = null;
 async function googleKeys(force = false) {
