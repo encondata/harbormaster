@@ -35,7 +35,7 @@ export default function Tokens({ base, title = 'API tokens', showSetup }: { base
           return (
             <div key={t.id} className="row small" style={{ opacity: t.revoked_at || expired ? 0.55 : 1 }}>
               <div className="grow">
-                <div style={{ fontWeight: 600 }}>{t.name} <span className="mono faint">hsl_{t.prefix}_…</span></div>
+                <div style={{ fontWeight: 600 }}>{t.name} {t.connector ? <span className="badge">Connected app</span> : <span className="mono faint">hsl_{t.prefix}_…</span>}</div>
                 <div className="faint">Created {dateTime(t.created_at)} · last used {timeAgo(t.last_used_at)}{t.expires_at ? ` · expires ${dateTime(t.expires_at)}` : ''}</div>
               </div>
               {t.revoked_at ? <span className="badge">Revoked</span> : expired ? <span className="badge">Expired</span> : <button className="btn sm danger" onClick={() => setRevoke(t)}>Revoke</button>}
@@ -71,7 +71,7 @@ export default function Tokens({ base, title = 'API tokens', showSetup }: { base
           )}
         </Modal>
       )}
-      {revoke && <Confirm title={`Revoke "${revoke.name}"?`} danger confirmLabel="Revoke" body="Anything using this token stops working immediately." onClose={() => setRevoke(null)}
+      {revoke && <Confirm title={`Revoke "${revoke.name}"?`} danger confirmLabel="Revoke" body={revoke.connector ? 'The app is disconnected immediately. Connect it again from the app to get it back.' : 'Anything using this token stops working immediately.'} onClose={() => setRevoke(null)}
         onConfirm={async () => { await api.del(`${base}/${revoke.id}`); qc.invalidateQueries({ queryKey: ['tokens', base] }); }} />}
     </div>
   );

@@ -79,7 +79,7 @@ export type AuditItem = {
 
 export type Role = { id: string; name: string; description: string; scope: 'global' | 'project'; permissions: string[]; is_builtin: boolean; assignments: number };
 
-export type Token = { id: string; name: string; prefix: string; created_at: string; last_used_at: string | null; expires_at: string | null; revoked_at: string | null };
+export type Token = { id: string; name: string; prefix: string; created_at: string; last_used_at: string | null; expires_at: string | null; revoked_at: string | null; connector?: string | null };
 
 export type Update = { id: string; title: string; period_start: string | null; period_end: string | null; body: string; hours: number | null; hours_note: string; created_at: string; updated_at: string; created_by_name: string | null; updated_by_name: string | null };
 

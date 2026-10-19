@@ -1,18 +1,46 @@
 # Claude integration
 
-Claude Code connects to Harbor Master through its MCP server at `<PUBLIC_URL>/api/mcp`
+Claude connects to Harbor Master through its MCP server at `<PUBLIC_URL>/api/mcp`
 (for the shared install: `https://harbormaster.hackspacelabs.com/api/mcp`).
 
-## The quick way: Profile → Claude
+## Claude Desktop, claude.ai and the Claude mobile apps
 
-In the app, open your name (bottom of the sidebar) → **Profile** → **Claude** tab, or the sparkle
-button in the header. It:
+Add Harbor Master as a custom connector: **Settings → Connectors → Add custom connector**, name
+**Harbor Master**, URL `https://harbormaster.hackspacelabs.com/api/mcp`. Click **Connect**; a
+Harbor Master page opens where you sign in and click **Allow**. (On a Team or Enterprise plan an
+owner adds the connector once under Organization settings → Connectors.)
 
-1. creates a personal connection token (Claude then acts as you, with your permissions, and its
-   changes show in history under your name marked "mcp");
-2. shows the one `claude mcp add …` command to run on each machine where you use Claude Code;
-3. writes the instructions to paste into a project's `CLAUDE.md`, using that project's real boards
-   and column names.
+This uses OAuth with Harbor Master as the provider: the connector registers itself, you approve
+it, and it gets its own access token (renewed hourly, connection valid for 90 days from last use).
+It acts as you, with your permissions, and shows under Profile → Claude → *Your connections and
+tokens*, where you can disconnect it. Approvals and connections are in the audit log.
+
+## Claude Code
+
+```bash
+claude mcp add --transport http --scope user harbormaster https://harbormaster.hackspacelabs.com/api/mcp
+```
+
+Then run `/mcp` in Claude Code, choose **harbormaster** → **Authenticate**, and allow it in the
+browser. On a machine without a browser, use a token instead (Profile → Claude → Claude Code →
+*Use a token instead*), which adds `--header "Authorization: Bearer hsl_…"` to the command.
+
+## Profile → Claude
+
+Open your name (bottom of the sidebar) → **Profile** → **Claude** tab, or the sparkle button in
+the header. It has the steps above for each app, and writes the instructions to paste into a
+Claude Project or a repository's `CLAUDE.md`, using that project's real boards and column names.
+
+## OAuth endpoints (for reference)
+
+- Discovery: `/.well-known/oauth-protected-resource` (also `/…/api/mcp`) and
+  `/.well-known/oauth-authorization-server`. A 401 from `/api/mcp` carries
+  `WWW-Authenticate: Bearer resource_metadata="…"`.
+- Registration `POST /api/oauth/register` (RFC 7591), consent page `/oauth/authorize`, token
+  `POST /api/oauth/token` (authorization code with PKCE S256, refresh with rotation), revocation
+  `POST /api/oauth/revoke`.
+- Redirect URIs must be https, or http on localhost. The web container proxies
+  `/.well-known/oauth-*` to the API.
 
 ## Shared automation: the Claude service account
 
@@ -20,7 +48,7 @@ For automation that shouldn't act as a person (scheduled jobs, the factory later
 can create a token for the **Claude** service account instead: **Users → Claude → New token**. Add
 the Claude account to each project it should touch (Settings → Members, Editor role).
 
-Manual command, if needed:
+Command with a token:
 
 ```bash
 claude mcp add --transport http --scope user harbormaster https://harbormaster.hackspacelabs.com/api/mcp --header "Authorization: Bearer hsl_xxxxxxxx_…"

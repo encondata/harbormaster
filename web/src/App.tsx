@@ -9,6 +9,7 @@ import UserDetail from './pages/admin/UserDetail';
 import UsersPage from './pages/admin/Users';
 import ChangePassword from './pages/ChangePassword';
 import Login from './pages/Login';
+import OAuthConsent from './pages/OAuthConsent';
 import Activity from './pages/project/Activity';
 import BoardPage from './pages/project/Board';
 import ProjectLayout from './pages/project/ProjectLayout';
@@ -37,6 +38,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<AfterLogin />} />
+      <Route path="/oauth/authorize" element={<OAuthConsent />} />
       <Route element={<Layout />}>
         <Route index element={<Projects />} />
         <Route path="account" element={<Account />} />

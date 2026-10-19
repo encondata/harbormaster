@@ -17,6 +17,7 @@ import projectRoutes from './routes/projects.js';
 import requestRoutes from './routes/requests.js';
 import searchRoutes from './routes/search.js';
 import meRoutes from './routes/me.js';
+import oauthRoutes from './routes/oauth.js';
 import { startScheduler } from './scheduler.js';
 import { ensureBucket, storageHealthy } from './storage.js';
 
@@ -45,10 +46,18 @@ app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body,
   }
 });
 
+// OAuth token, registration and revocation requests are form-encoded (RFC 6749).
+app.addContentTypeParser('application/x-www-form-urlencoded', { parseAs: 'string' }, (_req, body, done) => {
+  done(null, Object.fromEntries(new URLSearchParams(String(body))));
+});
+
 app.decorateRequest('ctx', null);
 
+// OAuth client endpoints authenticate the client themselves, never a user session.
+const OAUTH_CLIENT_PATHS = ['/api/oauth/token', '/api/oauth/register', '/api/oauth/revoke'];
+
 app.addHook('onRequest', async (req) => {
-  if (req.url.startsWith('/api/mcp') || req.url === '/api/health') return;
+  if (req.url.startsWith('/api/mcp') || req.url === '/api/health' || OAUTH_CLIENT_PATHS.includes(req.url.split('?')[0])) return;
   if (req.url.startsWith('/api/')) await authenticate(req);
 });
 
@@ -83,6 +92,7 @@ await app.register(cardRoutes);
 await app.register(requestRoutes);
 await app.register(searchRoutes);
 await app.register(meRoutes);
+await app.register(oauthRoutes);
 await app.register(mcpRoutes);
 
 const log = (m: string) => app.log.info(m);

@@ -6,7 +6,8 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticate, requireProject, requireUser, type Ctx } from './auth.js';
 import { one, q } from './db.js';
-import { HttpError, unauthorized } from './errors.js';
+import { HttpError } from './errors.js';
+import { resourceMetadataUrl } from './routes/oauth.js';
 import { addComment, cardHistory, createCard, getCardForCtx, listCards, listComments, moveCard, PRIORITIES, setArchived, updateCard, type Card } from './services/cards.js';
 import { resolveArea, resolveBoard, resolveProject } from './services/common.js';
 import { getProject, listProjectsFor, projectSummary, upsertArea } from './services/projects.js';
@@ -344,8 +345,19 @@ function buildServer(ctx: Ctx) {
 
 export default async function mcpRoutes(app: FastifyInstance) {
   app.post('/api/mcp', async (req, reply) => {
-    await authenticate(req, 'mcp');
-    if (!req.ctx || !req.ctx.tokenId) throw unauthorized('Use an API token: Authorization: Bearer hsl_…');
+    // A 401 points OAuth clients (Claude Desktop, claude.ai) at the sign-in metadata.
+    const challenge = (error?: string) => {
+      const params = [`resource_metadata="${resourceMetadataUrl()}"`, ...(error ? [`error="${error}"`] : [])];
+      return reply.code(401).header('www-authenticate', `Bearer ${params.join(', ')}`)
+        .send({ error: error ? 'Invalid or expired token' : 'Sign in required: connect with OAuth or use an API token (Authorization: Bearer hsl_…)', code: 'unauthorized' });
+    };
+    try {
+      await authenticate(req, 'mcp');
+    } catch (e) {
+      if (e instanceof HttpError && e.status === 401) return challenge('invalid_token');
+      throw e;
+    }
+    if (!req.ctx || !req.ctx.tokenId) return challenge();
     const ctx = requireUser(req);
     const server = buildServer(ctx);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
