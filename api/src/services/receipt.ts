@@ -174,11 +174,15 @@ export function buildTestTicket(projectName: string) {
   ]);
 }
 
-/** Sends raw bytes to the printer's TCP port and waits until it has taken them. */
+/** Sends raw bytes to the printer's TCP port and waits until it has taken them. The address is re-checked here too. */
 export function sendToPrinter(host: string, port: number, data: Buffer, timeoutMs = 8000): Promise<void> {
+  const addr = parsePrinterAddress(host, port);
+  if ('error' in addr) return Promise.reject(badRequest(`The saved printer address isn't allowed: ${addr.error}`));
   return new Promise((resolve, reject) => {
-    const fail = (why: string) => reject(new HttpError(502, `Couldn't print to ${host}:${port} (${why}). Check the printer is on and the address is right.`, 'printer_unreachable'));
-    const sock = net.createConnection({ host, port });
+    const fail = (why: string) => reject(new HttpError(502, `Couldn't print to ${addr.host}:${addr.port} (${why}). Check the printer is on and the address is right.`, 'printer_unreachable'));
+    // An IP literal never needs DNS; refuse any lookup so nothing can turn into a different address.
+    const lookup = ((_h: string, _o: unknown, cb: (e: Error) => void) => cb(new Error('DNS lookups are not allowed for printers'))) as unknown as net.LookupFunction;
+    const sock = net.createConnection({ host: addr.host, port: addr.port, lookup });
     sock.setTimeout(timeoutMs, () => { sock.destroy(); fail('no answer'); });
     sock.once('error', (e: NodeJS.ErrnoException) => fail(e.code ?? e.message));
     sock.once('connect', () => sock.end(data));
@@ -186,17 +190,20 @@ export function sendToPrinter(host: string, port: number, data: Buffer, timeoutM
   });
 }
 
-/** Printers live on the local network: a private IPv4 address and a raw printing port (9100–9109). */
-export function checkPrinterAddress(host: string, port: number): string | null {
-  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host.trim());
-  if (!m || m.slice(1).some((o) => Number(o) > 255)) return 'Enter the printer\'s IP address, like 192.168.1.50';
-  const [a, b] = [Number(m[1]), Number(m[2])];
-  const isPrivate = a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
-  if (!isPrivate) return 'The printer must be on your local network (an address starting 10., 172.16–31. or 192.168.)';
-  if (!Number.isInteger(port) || port < 9100 || port > 9109) return 'Use the printer\'s raw printing port, normally 9100';
-  return null;
+/**
+ * Printers live on the local network: a private IPv4 address and a raw printing port (9100–9109).
+ * Only the strict dotted form is accepted (no leading zeros, which some resolvers read as octal), and the address
+ * is rebuilt from its numbers, so what was checked is exactly what gets stored and connected to.
+ */
+export function parsePrinterAddress(host: string, port: number): { host: string; port: number } | { error: string } {
+  const h = host.trim();
+  if (!net.isIPv4(h)) return { error: 'Enter the printer\'s IP address, like 192.168.1.50' };
+  const o = h.split('.').map(Number);
+  const isPrivate = o[0] === 10 || (o[0] === 172 && o[1] >= 16 && o[1] <= 31) || (o[0] === 192 && o[1] === 168);
+  if (!isPrivate) return { error: 'The printer must be on your local network (an address starting 10., 172.16–31. or 192.168.)' };
+  if (!Number.isInteger(port) || port < 9100 || port > 9109) return { error: 'Use the printer\'s raw printing port, normally 9100' };
+  return { host: o.join('.'), port };
 }
-
 
 // ----- the project's receipt printer -----
 
@@ -214,13 +221,14 @@ async function projectPrinter(projectId: string): Promise<Printer> {
 export async function setReceiptPrinter(ctx: Ctx, projectId: string, printer: { host: string; port: number } | null) {
   await requireProject(ctx, projectId, 'project.manage');
   if (printer) {
-    const problem = checkPrinterAddress(printer.host, printer.port);
-    if (problem) throw badRequest(problem);
+    const parsed = parsePrinterAddress(printer.host, printer.port);
+    if ('error' in parsed) throw badRequest(parsed.error);
+    printer = parsed;
   }
-  await q(`update projects set receipt_printer_host = $2, receipt_printer_port = $3 where id = $1`, [projectId, printer?.host.trim() ?? null, printer?.port ?? null]);
+  await q(`update projects set receipt_printer_host = $2, receipt_printer_port = $3 where id = $1`, [projectId, printer?.host ?? null, printer?.port ?? null]);
   await audit(ctx, {
     action: 'project.receipt_printer', entityType: 'project', entityId: projectId, projectId,
-    summary: printer ? `Set the receipt printer to ${printer.host.trim()}:${printer.port}` : 'Removed the receipt printer',
+    summary: printer ? `Set the receipt printer to ${printer.host}:${printer.port}` : 'Removed the receipt printer',
   });
   publish({ projectId, type: 'project.updated', actor: ctx.user.name });
   return { ok: true };
