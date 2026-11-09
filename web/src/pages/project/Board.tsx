@@ -54,11 +54,19 @@ function CardTile({ card, recent, onOpen, overlay, draggable }: { card: Card; re
   );
 }
 
+function PrinterIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 9V3h12v6" /><rect x="3" y="9" width="18" height="8" rx="2" /><path d="M6 14h12v7H6z" />
+    </svg>
+  );
+}
+
 function ColumnView({
-  col, cards, laneId, collapsed, onToggle, recent, openCard, canMove, canCreate, onQuickAdd,
+  col, cards, laneId, collapsed, onToggle, recent, openCard, canMove, canCreate, onQuickAdd, projectKey,
 }: {
   col: Column; cards: Card[]; laneId: string; collapsed: boolean; onToggle: () => void; recent: Record<string, number>;
-  openCard: (c: Card) => void; canMove: boolean; canCreate: boolean; onQuickAdd: (title: string) => Promise<void>;
+  openCard: (c: Card) => void; canMove: boolean; canCreate: boolean; onQuickAdd: (title: string) => Promise<void>; projectKey: string;
 }) {
   const drop = useDroppable({ id: `col:${col.id}:${laneId}`, data: { columnId: col.id, laneId } });
   const [limit, setLimit] = useState(PAGE);
@@ -80,6 +88,12 @@ function ColumnView({
         <span>{col.name}</span>
         <span className={`count ${over ? 'wip-over' : ''}`}>{cards.length}{col.wip_limit ? ` / ${col.wip_limit}` : ''}</span>
         <div className="col-actions">
+          {cards.length > 0 && (
+            <a className="btn ghost sm icon" title={`Print ${cards.length === 1 ? 'this card' : `these ${cards.length} cards`} (6 per page)`} target="_blank" rel="noreferrer"
+              href={`/print/p/${encodeURIComponent(projectKey)}/sheet?${new URLSearchParams({ keys: cards.slice(0, 300).map((c) => c.key).join(','), title: col.name, autoprint: '1' })}`}>
+              <PrinterIcon />
+            </a>
+          )}
           {canCreate && <button className="btn ghost sm icon" title="Add card" onClick={() => setAdding(true)}>＋</button>}
           <button className="btn ghost sm icon" title="Collapse column" onClick={onToggle}>‹</button>
         </div>
@@ -355,7 +369,7 @@ export default function BoardPage() {
                   <div className="board">
                     {board.columns.map((col) => (
                       <ColumnView key={col.id} col={col} cards={inLane(lane.id, col.id)} laneId={lane.id} collapsed={collapsed.has(col.id)} onToggle={() => toggle(col.id)}
-                        recent={recent} openCard={openCard} canMove={canMove} canCreate={canCreate} onQuickAdd={quickAdd(col.id, lane.id)} />
+                        recent={recent} openCard={openCard} canMove={canMove} canCreate={canCreate} onQuickAdd={quickAdd(col.id, lane.id)} projectKey={project.key} />
                     ))}
                   </div>
                 </div>
@@ -366,7 +380,7 @@ export default function BoardPage() {
             <div className="board">
               {board.columns.map((col) => (
                 <ColumnView key={col.id} col={col} cards={inLane('all', col.id)} laneId="all" collapsed={collapsed.has(col.id)} onToggle={() => toggle(col.id)}
-                  recent={recent} openCard={openCard} canMove={canMove} canCreate={canCreate} onQuickAdd={quickAdd(col.id, 'all')} />
+                  recent={recent} openCard={openCard} canMove={canMove} canCreate={canCreate} onQuickAdd={quickAdd(col.id, 'all')} projectKey={project.key} />
               ))}
             </div>
           )}

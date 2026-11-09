@@ -12,6 +12,7 @@ import ChangePassword from './pages/ChangePassword';
 import Login from './pages/Login';
 import OAuthConsent from './pages/OAuthConsent';
 import PrintCard from './pages/PrintCard';
+import PrintSheet from './pages/PrintSheet';
 import Activity from './pages/project/Activity';
 import BoardPage from './pages/project/Board';
 import ProjectLayout from './pages/project/ProjectLayout';
@@ -44,6 +45,7 @@ export default function App() {
       <Route path="/login" element={<AfterLogin />} />
       <Route path="/oauth/authorize" element={<OAuthConsent />} />
       <Route path="/print/card/:key" element={<PrintCard />} />
+      <Route path="/print/p/:project/sheet" element={<PrintSheet />} />
       <Route path="/c/:token" element={<CardLink />} />
       <Route element={<Layout />}>
         <Route index element={<Projects />} />

@@ -332,3 +332,15 @@ export async function resolveCardLink(ctx: Ctx, token: string) {
   await requireProject(ctx, row.project_id, 'project.view');
   return { key: row.key, project_key: row.project_key, board_key: row.board_key };
 }
+
+/** Cards to print, in the order asked, each with its QR link token. Keys from other projects are ignored. */
+export async function cardsForPrint(projectId: string, keys: string[]) {
+  const numbers = [...new Set(keys.map((k) => /-(\d+)$/.exec(k.trim())?.[1]).filter(Boolean).map(Number))];
+  if (!numbers.length) return [];
+  const cards = await q<Card>(`${CARD_SELECT} where c.project_id = $1 and c.number = any($2::int[])`, [projectId, numbers]);
+  const byNumber = new Map(cards.map((c) => [c.number, c]));
+  const ordered = numbers.map((n) => byNumber.get(n)).filter((c): c is Card => !!c);
+  const out: (Card & { link_token: string })[] = [];
+  for (const c of ordered) out.push({ ...c, link_token: await cardLinkToken(c.id) });
+  return out;
+}

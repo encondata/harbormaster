@@ -741,34 +741,47 @@ a.wiki-list-row:hover { background: var(--bg-sunken); text-decoration: none; }
   .wiki-comment.reply { margin-left: 16px; }
 }
 
-/* ----- printed index card (3×5 in, landscape) ----- */
+/* ----- printed index cards: one 3×5 card, or six per letter sheet -----
+   Sizes are written for a 5×3 in card and multiplied by --s, so smaller cells keep the same design. */
 .print-shell { min-height: 100vh; padding: 32px 16px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
 .print-toolbar { width: 5in; max-width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.print-toolbar.wide { width: 8.5in; }
 .index-card {
-  position: relative; box-sizing: border-box; width: 5in; height: 3in; padding: 0.22in 0.3in; overflow: hidden;
+  --s: 1;
+  position: relative; box-sizing: border-box; width: 5in; height: 3in; padding: calc(var(--s) * 0.22in) calc(var(--s) * 0.3in); overflow: hidden;
   display: flex; flex-direction: column;
-  background: #fff; color: #111; font-family: Helvetica, Arial, sans-serif; font-size: 12pt;
+  background: #fff; color: #111; font-family: Helvetica, Arial, sans-serif; font-size: calc(var(--s) * 12pt);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18); border-radius: 4px;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
-.index-card .ic-logo { position: absolute; left: 50%; bottom: 0.1in; width: 1.5in; transform: translateX(-50%); opacity: 0.3; pointer-events: none; }
-.index-card .ic-qr { position: absolute; top: 0.16in; right: 0.2in; width: 0.72in; text-align: center; }
-.index-card .ic-qr-code { display: block; width: 0.72in; height: 0.72in; }
-.index-card .ic-key { margin-top: 2px; font: 600 7pt/1 ui-monospace, Menlo, monospace; letter-spacing: 0.02em; }
-.index-card .ic-line { display: flex; gap: 6px; align-items: baseline; margin-right: 0.9in; min-height: 0.36in; }
+.index-card .ic-logo { position: absolute; left: 50%; bottom: calc(var(--s) * 0.1in); width: calc(var(--s) * 1.5in); transform: translateX(-50%); opacity: 0.3; pointer-events: none; }
+.index-card .ic-qr { position: absolute; top: calc(var(--s) * 0.16in); right: calc(var(--s) * 0.2in); width: calc(var(--s) * 0.72in); text-align: center; }
+.index-card .ic-qr-code { display: block; width: calc(var(--s) * 0.72in); height: calc(var(--s) * 0.72in); }
+.index-card .ic-key { margin-top: 2px; font: 600 calc(var(--s) * 7pt)/1 ui-monospace, Menlo, monospace; letter-spacing: 0.02em; }
+.index-card .ic-line { display: flex; gap: calc(var(--s) * 6px); align-items: baseline; margin-right: calc(var(--s) * 0.9in); min-height: calc(var(--s) * 0.36in); }
 .index-card .ic-sub .ic-val { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .index-card .ic-lbl { flex: none; }
-.index-card .ic-val { font-weight: 600; font-size: 11pt; line-height: 1.2; }
+.index-card .ic-val { font-weight: 600; font-size: calc(var(--s) * 11pt); line-height: 1.2; }
 .index-card .ic-notes {
   position: relative; flex: 1; min-height: 0; margin-top: 2px; overflow: hidden; white-space: pre-line;
-  font-size: 9pt; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical;
+  font-size: calc(var(--s) * 9pt); line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical;
 }
-.index-card .ic-rule { border-top: 1px solid #666; margin: 0.04in 0 0.06in; }
+.index-card .ic-rule { border-top: 1px solid #666; margin: calc(var(--s) * 0.04in) 0 calc(var(--s) * 0.06in); }
+
+/* Letter sheet: 0.25 in margin (inside most printers' printable area), 2 × 3 cells of 4 × 3.5 in, dashed cut lines. */
+.print-sheet {
+  box-sizing: border-box; width: 8.5in; height: 11in; padding: 0.25in; background: #fff;
+  display: grid; grid-template-columns: repeat(2, 4in); grid-template-rows: repeat(3, 3.5in);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+.print-sheet .sheet-cell { outline: 0.5pt dashed #b5b5b5; outline-offset: -0.25pt; }
+.print-sheet .index-card { box-shadow: none; border-radius: 0; }
 
 @media print {
-  @page { size: 5in 3in; margin: 0; }
   html, body { background: #fff !important; margin: 0; }
   .print-toolbar { display: none !important; }
   .print-shell { padding: 0; min-height: 0; display: block; }
   .index-card { box-shadow: none; border-radius: 0; }
+  .print-sheet { box-shadow: none; break-after: page; }
+  .print-sheet:last-child { break-after: auto; }
 }
