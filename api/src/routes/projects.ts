@@ -9,6 +9,7 @@ import {
   addBoard, addColumn, areaInput, boardInput, boardPatch, columnInput, createProject, deleteArea, deleteColumn, getProject, listMembers,
   listProjectsFor, MAX_LOGO_BYTES, projectInput, projectLogo, removeProjectLogo, setProjectLogo, projectPatch, projectSummary, setMember, updateBoard, updateColumn, updateProject, upsertArea,
 } from '../services/projects.js';
+import { MAX_TICKETS, printCardTickets, printTestTicket, setReceiptPrinter } from '../services/receipt.js';
 import { exportSettings, runExport, saveExportSettings } from '../services/sheet-export.js';
 import { deleteUpdate, listUpdates, saveUpdate, updateInput } from '../services/updates.js';
 import { parse } from '../validate.js';
@@ -45,6 +46,21 @@ export default async function projectRoutes(app: FastifyInstance) {
   });
 
   app.delete('/api/projects/:project/logo', async (req) => removeProjectLogo(requireUser(req), await pid(req)));
+
+  // Network receipt printer (Epson ESC/POS over raw TCP).
+  app.put('/api/projects/:project/receipt-printer', async (req) => {
+    const body = parse(z.object({ host: z.string().trim().min(1).max(64), port: z.number().int().default(9100) }), req.body);
+    return setReceiptPrinter(requireUser(req), await pid(req), body);
+  });
+
+  app.delete('/api/projects/:project/receipt-printer', async (req) => setReceiptPrinter(requireUser(req), await pid(req), null));
+
+  app.post('/api/projects/:project/receipt-printer/test', async (req) => printTestTicket(requireUser(req), await pid(req)));
+
+  app.post('/api/projects/:project/cards/receipt', async (req) => {
+    const body = parse(z.object({ keys: z.array(z.string().regex(/^[A-Za-z][A-Za-z0-9]*-\d+$/)).min(1).max(MAX_TICKETS) }), req.body);
+    return printCardTickets(requireUser(req), await pid(req), body.keys);
+  });
 
   app.get('/api/projects/:project/summary', async (req) => projectSummary(requireUser(req), await pid(req)));
 

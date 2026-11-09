@@ -7,7 +7,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { api, PRIORITIES, qs, type Board, type Card, type Column } from '../../api';
+import { api, printReceipts, PRIORITIES, qs, type Board, type Card, type Column } from '../../api';
 import { ErrorBox, Spinner, useToast } from '../../components/ui';
 import { colorVar, timeAgo } from '../../lib/format';
 import { canDo } from '../../lib/project';
@@ -62,11 +62,19 @@ function PrinterIcon() {
   );
 }
 
+function ReceiptIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 2h14v20l-3-2-2 2-2-2-2 2-2-2-3 2z" /><path d="M9 7h6M9 11h6M9 15h4" />
+    </svg>
+  );
+}
+
 function ColumnView({
-  col, cards, laneId, collapsed, onToggle, recent, openCard, canMove, canCreate, onQuickAdd, projectKey,
+  col, cards, laneId, collapsed, onToggle, recent, openCard, canMove, canCreate, onQuickAdd, projectKey, onReceipt,
 }: {
   col: Column; cards: Card[]; laneId: string; collapsed: boolean; onToggle: () => void; recent: Record<string, number>;
-  openCard: (c: Card) => void; canMove: boolean; canCreate: boolean; onQuickAdd: (title: string) => Promise<void>; projectKey: string;
+  openCard: (c: Card) => void; canMove: boolean; canCreate: boolean; onQuickAdd: (title: string) => Promise<void>; projectKey: string; onReceipt?: (cards: Card[]) => void;
 }) {
   const drop = useDroppable({ id: `col:${col.id}:${laneId}`, data: { columnId: col.id, laneId } });
   const [limit, setLimit] = useState(PAGE);
@@ -93,6 +101,11 @@ function ColumnView({
               href={`/print/p/${encodeURIComponent(projectKey)}/sheet?${new URLSearchParams({ keys: cards.slice(0, 300).map((c) => c.key).join(','), title: col.name, autoprint: '1' })}`}>
               <PrinterIcon />
             </a>
+          )}
+          {onReceipt && cards.length > 0 && (
+            <button className="btn ghost sm icon" title={`Print ${cards.length === 1 ? 'this card' : `these ${Math.min(cards.length, 50)} cards`} on the receipt printer`} onClick={() => onReceipt(cards)}>
+              <ReceiptIcon />
+            </button>
           )}
           {canCreate && <button className="btn ghost sm icon" title="Add card" onClick={() => setAdding(true)}>＋</button>}
           <button className="btn ghost sm icon" title="Collapse column" onClick={onToggle}>‹</button>
@@ -185,6 +198,11 @@ export default function BoardPage() {
   const [sp, setSp] = useSearchParams();
   const qc = useQueryClient();
   const toast = useToast();
+  const onReceipt = project.receipt_printer_host ? async (list: Card[]) => {
+    const keys = list.slice(0, 50).map((c) => c.key);
+    if (keys.length > 3 && !window.confirm(`Print ${keys.length} tickets on the receipt printer?${list.length > 50 ? ' (The first 50 cards of this column.)' : ''}`)) return;
+    try { toast(await printReceipts(project.key, keys)); } catch (e) { toast(e instanceof Error ? e.message : 'Printing failed', 'error'); }
+  } : undefined;
   const board = project.boards.find((b) => b.key === boardKey);
   const archived = sp.get('archived') === '1';
   const queryKey = ['cards', project.key, boardKey, archived];
@@ -369,7 +387,7 @@ export default function BoardPage() {
                   <div className="board">
                     {board.columns.map((col) => (
                       <ColumnView key={col.id} col={col} cards={inLane(lane.id, col.id)} laneId={lane.id} collapsed={collapsed.has(col.id)} onToggle={() => toggle(col.id)}
-                        recent={recent} openCard={openCard} canMove={canMove} canCreate={canCreate} onQuickAdd={quickAdd(col.id, lane.id)} projectKey={project.key} />
+                        recent={recent} openCard={openCard} canMove={canMove} canCreate={canCreate} onQuickAdd={quickAdd(col.id, lane.id)} projectKey={project.key} onReceipt={onReceipt} />
                     ))}
                   </div>
                 </div>
@@ -380,7 +398,7 @@ export default function BoardPage() {
             <div className="board">
               {board.columns.map((col) => (
                 <ColumnView key={col.id} col={col} cards={inLane('all', col.id)} laneId="all" collapsed={collapsed.has(col.id)} onToggle={() => toggle(col.id)}
-                  recent={recent} openCard={openCard} canMove={canMove} canCreate={canCreate} onQuickAdd={quickAdd(col.id, 'all')} projectKey={project.key} />
+                  recent={recent} openCard={openCard} canMove={canMove} canCreate={canCreate} onQuickAdd={quickAdd(col.id, 'all')} projectKey={project.key} onReceipt={onReceipt} />
               ))}
             </div>
           )}

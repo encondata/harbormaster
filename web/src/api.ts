@@ -52,7 +52,7 @@ export type Board = { id: string; key: string; name: string; description: string
 
 export type Area = { id: string; name: string; sort: number; priority: string; expected_date: string; notes: string; updated_at: string };
 
-export type Project = { id: string; key: string; name: string; description: string; archived_at: string | null; permissions: string[]; boards: Board[]; areas: Area[]; requests: { new: number; open: number }; wiki_folder_id?: string | null; logo_updated_at: string | null };
+export type Project = { id: string; key: string; name: string; description: string; archived_at: string | null; permissions: string[]; boards: Board[]; areas: Area[]; requests: { new: number; open: number }; wiki_folder_id?: string | null; logo_updated_at: string | null; receipt_printer_host: string | null; receipt_printer_port: number | null };
 
 export type ProjectListItem = { id: string; key: string; name: string; description: string; archived_at: string | null; my_role: string | null; card_count: number; member_count: number };
 
@@ -103,3 +103,9 @@ export type FeatureRequest = {
 /** The faint logo on printed cards: the project's own, or the built-in H. */
 export const cardLogoUrl = (projectKey: string, logoAt: string | null | undefined) =>
   logoAt ? `/api/projects/${encodeURIComponent(projectKey)}/logo?v=${encodeURIComponent(logoAt)}` : '/card-logo.png';
+
+/** Prints cards on the project's network receipt printer; returns a message for a toast. */
+export async function printReceipts(projectKey: string, keys: string[]) {
+  const r = await api.post<{ printed: number }>(`/api/projects/${encodeURIComponent(projectKey)}/cards/receipt`, { keys });
+  return r.printed === 1 ? 'Sent to the receipt printer' : `Sent ${r.printed} tickets to the receipt printer`;
+}

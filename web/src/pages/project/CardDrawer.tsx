@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { api, PRIORITIES, type Card, type FieldDef, type Project } from '../../api';
+import { api, printReceipts, PRIORITIES, type Card, type FieldDef, type Project } from '../../api';
 import { Avatar, Confirm, ErrorBox, Spinner, useToast } from '../../components/ui';
 import { bytes, dateTime, timeAgo } from '../../lib/format';
 import { Markdown } from '../../lib/markdown';
@@ -134,6 +134,11 @@ export default function CardDrawer({ cardKey, project, onClose }: { cardKey: str
           <span className="grow" />
           <button className="btn ghost sm" onClick={() => { navigator.clipboard?.writeText(window.location.href); toast('Link copied'); }}>Copy link</button>
           <a className="btn ghost sm" href={`/print/card/${encodeURIComponent(cardKey)}?autoprint=1`} target="_blank" rel="noreferrer" title="Print on a 3×5 index card">Print</a>
+          {project.receipt_printer_host && (
+            <button className="btn ghost sm" title="Print on the receipt printer" onClick={async () => {
+              try { toast(await printReceipts(project.key, [cardKey])); } catch (e) { toast(e instanceof Error ? e.message : 'Printing failed', 'error'); }
+            }}>Receipt</button>
+          )}
           {card && canDo(project, 'card.archive') && (
             card.archived_at
               ? <button className="btn sm" onClick={async () => { await api.post(`/api/cards/${cardKey}/archive`, { archived: false }); refresh(); toast('Card restored'); }}>Restore</button>

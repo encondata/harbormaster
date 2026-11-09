@@ -93,7 +93,7 @@ export async function createProject(ctx: Ctx, input: z.infer<typeof projectInput
 
 export async function getProject(ctx: Ctx, projectId: string) {
   const perms = await requireProject(ctx, projectId, 'project.view');
-  const p = await one(`select id, key, name, description, archived_at, created_at, updated_at, logo_updated_at from projects where id = $1`, [projectId]);
+  const p = await one(`select id, key, name, description, archived_at, created_at, updated_at, logo_updated_at, receipt_printer_host, receipt_printer_port from projects where id = $1`, [projectId]);
   if (!p) throw notFound('Project not found');
   const boards = await q(
     `select b.id, b.key, b.name, b.description, b.sort, b.field_defs, b.parity_enabled, b.archived_at,

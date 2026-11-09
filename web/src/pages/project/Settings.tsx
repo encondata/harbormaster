@@ -91,6 +91,42 @@ function Logo({ project }: { project: Project }) {
   );
 }
 
+function ReceiptPrinter({ project }: { project: Project }) {
+  const refresh = useRefresh(project);
+  const toast = useToast();
+  const [host, setHost] = useState(project.receipt_printer_host ?? '');
+  const [port, setPort] = useState(String(project.receipt_printer_port ?? 9100));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>(null);
+  const saved = project.receipt_printer_host;
+  const dirty = host.trim() !== (saved ?? '') || Number(port) !== (project.receipt_printer_port ?? 9100);
+  const run = async (fn: () => Promise<unknown>, done: string) => {
+    setErr(null);
+    setBusy(true);
+    try { await fn(); refresh(); toast(done); } catch (e) { setErr(e); } finally { setBusy(false); }
+  };
+  return (
+    <div className="card-box">
+      <div className="hd"><h2>Receipt printer</h2></div>
+      <div className="bd form-grid">
+        <div className="faint small">An Epson (ESC/POS) receipt printer on your network with 80 mm paper. Cards print as tickets with a QR code and are cut one by one.</div>
+        <div className="form-grid two">
+          <label className="field">IP address<input className="input" placeholder="192.168.1.50" value={host} onChange={(e) => setHost(e.target.value)} /></label>
+          <label className="field">Port<input className="input" inputMode="numeric" value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, ''))} /></label>
+        </div>
+        <ErrorBox error={err} />
+        <div className="btn-row">
+          <button className="btn primary" disabled={busy || !host.trim() || !dirty}
+            onClick={() => run(() => api.put(`/api/projects/${project.key}/receipt-printer`, { host: host.trim(), port: Number(port) || 9100 }), 'Printer saved')}>Save</button>
+          {saved && !dirty && <button className="btn" disabled={busy} onClick={() => run(() => api.post(`/api/projects/${project.key}/receipt-printer/test`, {}), 'Test ticket sent')}>{busy ? 'Printing…' : 'Print a test ticket'}</button>}
+          <span className="grow" />
+          {saved && <button className="btn ghost" disabled={busy} onClick={() => run(async () => { await api.del(`/api/projects/${project.key}/receipt-printer`); setHost(''); setPort('9100'); }, 'Printer removed')}>Remove printer</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Members({ project }: { project: Project }) {
   const qc = useQueryClient();
   const members = useQuery({ queryKey: ['members', project.key], queryFn: () => api.get<Member[]>(`/api/projects/${project.key}/members`) });
@@ -451,6 +487,7 @@ export default function Settings() {
       <div className="stack">
         <General project={project} />
         <Logo project={project} />
+        <ReceiptPrinter project={project} />
         <Members project={project} />
         <Boards project={project} />
         <Areas project={project} />
