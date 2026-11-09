@@ -1,9 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
 import QRCode from 'qrcode';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { api, type Card } from '../api';
 import { ErrorBox, Spinner } from '../components/ui';
+
+/** Card descriptions are markdown; on paper we want just the words. */
+function plainText(md: string) {
+  return md
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '')
+    .replace(/[*_~`]+/g, '')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+}
 
 /**
  * A kanban card laid out for a 5×3 in index card (landscape), with a QR code that opens the card.
@@ -18,6 +30,7 @@ export default function PrintCard() {
   const card = useQuery({ queryKey: ['card', key], enabled: valid, queryFn: () => api.get<Card>(path) });
   const link = useQuery({ queryKey: ['card-link', key], enabled: valid, queryFn: () => api.post<{ url: string }>(`${path}/link`, {}), staleTime: Infinity });
   const [qr, setQr] = useState<string | null>(null);
+  const notesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!link.data) return;
@@ -25,6 +38,13 @@ export default function PrintCard() {
   }, [link.data]);
 
   const ready = !!card.data && !!qr;
+  // Cut the description off with "…" at however many whole lines fit under the title.
+  useLayoutEffect(() => {
+    const el = notesRef.current;
+    if (!el) return;
+    const lines = Math.max(1, Math.floor(el.clientHeight / parseFloat(getComputedStyle(el).lineHeight)));
+    el.style.setProperty('-webkit-line-clamp', String(lines));
+  }, [ready]);
   useEffect(() => {
     if (!ready || sp.get('autoprint') !== '1') return;
     document.title = `${card.data!.key} card`;
@@ -57,6 +77,7 @@ export default function PrintCard() {
         <div className="ic-line ic-sub"><span className="ic-lbl">Sub:</span><span className="ic-val">{c.title}</span></div>
         <div className="ic-rule" />
         <div className="ic-lbl">Notes:</div>
+        <div className="ic-notes" ref={notesRef}>{plainText(c.description)}</div>
       </div>
     </div>
   );
