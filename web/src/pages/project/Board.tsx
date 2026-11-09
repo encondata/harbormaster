@@ -5,7 +5,7 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { api, printReceipts, PRIORITIES, qs, type Board, type Card, type Column } from '../../api';
 import { ErrorBox, Spinner, useToast } from '../../components/ui';
@@ -62,6 +62,48 @@ function PrinterIcon() {
   );
 }
 
+/** Column header print button: a small menu to print the column's cards on letter sheets or on 3×5 cards. */
+function PrintMenu({ projectKey, title, cards }: { projectKey: string; title: string; cards: Card[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    ref.current?.querySelector<HTMLAnchorElement>('[role="menuitem"]')?.focus();
+    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setOpen(false); ref.current?.querySelector<HTMLButtonElement>('button')?.focus(); }
+      const items = [...(ref.current?.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]') ?? [])];
+      const i = items.indexOf(document.activeElement as HTMLAnchorElement);
+      if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length]?.focus(); }
+      if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus(); }
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  const n = Math.min(cards.length, 300);
+  const href = (layout: 'sheet' | 'cards') =>
+    `/print/p/${encodeURIComponent(projectKey)}/${layout}?${new URLSearchParams({ keys: cards.slice(0, 300).map((c) => c.key).join(','), title, autoprint: '1' })}`;
+  const pages = Math.ceil(n / 6);
+  return (
+    <div className="print-menu" ref={ref}>
+      <button className="btn ghost sm icon" title={`Print ${n === 1 ? 'this card' : `these ${n} cards`}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <PrinterIcon />
+      </button>
+      {open && (
+        <div className="print-menu-list" role="menu" aria-label="Print">
+          <a role="menuitem" href={href('sheet')} target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
+            Letter sheets<span className="faint small">6 per page · {pages === 1 ? '1 page' : `${pages} pages`}</span>
+          </a>
+          <a role="menuitem" href={href('cards')} target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
+            3×5 index cards<span className="faint small">1 per card · {n === 1 ? '1 card' : `${n} cards`}</span>
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReceiptIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -97,10 +139,7 @@ function ColumnView({
         <span className={`count ${over ? 'wip-over' : ''}`}>{cards.length}{col.wip_limit ? ` / ${col.wip_limit}` : ''}</span>
         <div className="col-actions">
           {cards.length > 0 && (
-            <a className="btn ghost sm icon" title={`Print ${cards.length === 1 ? 'this card' : `these ${cards.length} cards`} (6 per page)`} target="_blank" rel="noreferrer"
-              href={`/print/p/${encodeURIComponent(projectKey)}/sheet?${new URLSearchParams({ keys: cards.slice(0, 300).map((c) => c.key).join(','), title: col.name, autoprint: '1' })}`}>
-              <PrinterIcon />
-            </a>
+            <PrintMenu projectKey={projectKey} title={col.name} cards={cards} />
           )}
           {onReceipt && cards.length > 0 && (
             <button className="btn ghost sm icon" title={`Print ${cards.length === 1 ? 'this card' : `these ${Math.min(cards.length, 50)} cards`} on the receipt printer`} onClick={() => onReceipt(cards)}>

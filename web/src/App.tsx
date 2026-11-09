@@ -46,6 +46,7 @@ export default function App() {
       <Route path="/oauth/authorize" element={<OAuthConsent />} />
       <Route path="/print/card/:key" element={<PrintCard />} />
       <Route path="/print/p/:project/sheet" element={<PrintSheet />} />
+      <Route path="/print/p/:project/cards" element={<PrintSheet layout="cards" />} />
       <Route path="/c/:token" element={<CardLink />} />
       <Route element={<Layout />}>
         <Route index element={<Projects />} />

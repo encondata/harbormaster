@@ -434,6 +434,13 @@ table.t .total td { font-weight: 650; background: var(--surface-2); }
 .col-hd .count { color: var(--text-3); font-weight: 550; font-size: 12px; }
 .col-hd .wip-over { color: var(--danger); }
 .col-actions { margin-left: auto; display: flex; gap: 2px; }
+.print-menu { position: relative; }
+.print-menu-list {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; width: 210px; padding: 6px; display: grid; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-2);
+}
+.print-menu-list a { display: grid; gap: 1px; padding: 7px 8px; border-radius: var(--radius-sm); color: var(--text); text-decoration: none; font-weight: 550; }
+.print-menu-list a:hover, .print-menu-list a:focus-visible { background: var(--surface-2); outline: none; }
 .col-body { padding: 0 8px 8px; overflow-y: auto; display: grid; gap: 6px; min-height: 40px; align-content: start; }
 .col-more { text-align: center; padding: 4px; }
 
@@ -786,8 +793,12 @@ a.wiki-list-row:hover { background: var(--bg-sunken); text-decoration: none; }
 .print-sheet .sheet-cell { outline: 0.5pt dashed #b5b5b5; outline-offset: -0.25pt; }
 .print-sheet .index-card { box-shadow: none; border-radius: 0; }
 
+.print-card-page { display: contents; }
+
 @media print {
   html, body { background: #fff !important; margin: 0; }
+  .print-card-page { display: block; break-after: page; }
+  .print-card-page:last-child { break-after: auto; }
   .print-toolbar { display: none !important; }
   .print-shell { padding: 0; min-height: 0; display: block; }
   .index-card { box-shadow: none; border-radius: 0; }
