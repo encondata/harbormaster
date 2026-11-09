@@ -12,8 +12,11 @@ import { ErrorBox, Spinner } from '../components/ui';
 export default function PrintCard() {
   const { key = '' } = useParams();
   const [sp] = useSearchParams();
-  const card = useQuery({ queryKey: ['card', key], queryFn: () => api.get<Card>(`/api/cards/${key}`) });
-  const link = useQuery({ queryKey: ['card-link', key], queryFn: () => api.post<{ url: string }>(`/api/cards/${key}/link`, {}), staleTime: Infinity });
+  // Only card keys like "SS-42" reach the API, and always encoded, so a crafted URL can't steer the request elsewhere.
+  const valid = /^[A-Za-z][A-Za-z0-9]*-\d+$/.test(key);
+  const path = `/api/cards/${encodeURIComponent(key)}`;
+  const card = useQuery({ queryKey: ['card', key], enabled: valid, queryFn: () => api.get<Card>(path) });
+  const link = useQuery({ queryKey: ['card-link', key], enabled: valid, queryFn: () => api.post<{ url: string }>(`${path}/link`, {}), staleTime: Infinity });
   const [qr, setQr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,6 +33,7 @@ export default function PrintCard() {
     return () => clearTimeout(t);
   }, [ready, sp, card.data]);
 
+  if (!valid) return <div className="page"><div className="empty">Card not found</div></div>;
   if (card.error || link.error) return <div className="page"><ErrorBox error={card.error ?? link.error} /></div>;
   if (!ready) return <Spinner />;
   const c = card.data!;
