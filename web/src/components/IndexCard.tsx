@@ -29,10 +29,10 @@ export function useQrDataUrl(url: string | undefined) {
 }
 
 /**
- * The printed card design (System / Sub / Notes, QR top right, faint H behind).
+ * The printed card design (System / Sub / Notes, QR top right, the project logo faint and centred behind).
  * Laid out for a 5×3 in card; `scale` shrinks everything for smaller cells, `width`/`height` set the cell.
  */
-export function IndexCard({ card, qr, width = '5in', height = '3in', scale = 1 }: { card: Card; qr: string; width?: string; height?: string; scale?: number }) {
+export function IndexCard({ card, qr, logo, width = '5in', height = '3in', scale = 1 }: { card: Card; qr: string; logo: string; width?: string; height?: string; scale?: number }) {
   const notesRef = useRef<HTMLDivElement>(null);
   // Cut the description off with "…" at however many whole lines fit under the title.
   useLayoutEffect(() => {
@@ -44,7 +44,7 @@ export function IndexCard({ card, qr, width = '5in', height = '3in', scale = 1 }
 
   return (
     <div className="index-card" style={{ width, height, ['--s' as string]: scale }}>
-      <img className="ic-logo" src="/card-logo.png" alt="" />
+      <img className="ic-logo" src={logo} alt="" onError={(e) => { if (!e.currentTarget.src.endsWith('/card-logo.png')) e.currentTarget.src = '/card-logo.png'; }} />
       <div className="ic-qr">
         <img className="ic-qr-code" src={qr} alt={`QR code for ${card.key}`} />
         <div className="ic-key">{card.key}</div>
@@ -56,6 +56,12 @@ export function IndexCard({ card, qr, width = '5in', height = '3in', scale = 1 }
       <div className="ic-notes" ref={notesRef}>{plainText(card.description)}</div>
     </div>
   );
+}
+
+/** Opens the print dialog once every image on the page (logos, QR codes) has loaded. */
+export async function printWhenImagesLoaded() {
+  await Promise.all([...document.images].map((img) => (img.complete ? Promise.resolve() : img.decode().catch(() => {}))));
+  window.print();
 }
 
 /** Sets the printed page size while a print page is mounted. */

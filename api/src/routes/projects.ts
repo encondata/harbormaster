@@ -7,7 +7,7 @@ import { resolveProject } from '../services/common.js';
 import { fetchGoogleSheet, importWorkbook } from '../services/import-sheet.js';
 import {
   addBoard, addColumn, areaInput, boardInput, boardPatch, columnInput, createProject, deleteArea, deleteColumn, getProject, listMembers,
-  listProjectsFor, projectInput, projectPatch, projectSummary, setMember, updateBoard, updateColumn, updateProject, upsertArea,
+  listProjectsFor, MAX_LOGO_BYTES, projectInput, projectLogo, removeProjectLogo, setProjectLogo, projectPatch, projectSummary, setMember, updateBoard, updateColumn, updateProject, upsertArea,
 } from '../services/projects.js';
 import { exportSettings, runExport, saveExportSettings } from '../services/sheet-export.js';
 import { deleteUpdate, listUpdates, saveUpdate, updateInput } from '../services/updates.js';
@@ -24,6 +24,27 @@ export default async function projectRoutes(app: FastifyInstance) {
   app.get('/api/projects/:project', async (req) => getProject(requireUser(req), await pid(req)));
 
   app.patch('/api/projects/:project', async (req) => updateProject(requireUser(req), await pid(req), parse(projectPatch, req.body)));
+
+  // Project logo, printed faintly behind printed cards.
+  app.get('/api/projects/:project/logo', async (req, reply) => {
+    const data = await projectLogo(requireUser(req), await pid(req));
+    reply.header('content-type', 'image/png').header('cache-control', 'private, max-age=86400').header('x-content-type-options', 'nosniff');
+    return reply.send(data);
+  });
+
+  app.post('/api/projects/:project/logo', async (req) => {
+    const ctx = requireUser(req);
+    const projectId = await pid(req);
+    await requireProject(ctx, projectId, 'project.manage');
+    if (!req.isMultipart()) throw badRequest('Upload the logo as multipart/form-data');
+    const file = await req.file({ limits: { fileSize: MAX_LOGO_BYTES } });
+    if (!file) throw badRequest('No logo attached');
+    const data = await file.toBuffer();
+    if (file.file.truncated) throw badRequest('That logo is larger than 8 MB');
+    return setProjectLogo(ctx, projectId, data);
+  });
+
+  app.delete('/api/projects/:project/logo', async (req) => removeProjectLogo(requireUser(req), await pid(req)));
 
   app.get('/api/projects/:project/summary', async (req) => projectSummary(requireUser(req), await pid(req)));
 

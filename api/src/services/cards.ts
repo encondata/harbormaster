@@ -13,7 +13,7 @@ const CARD_SELECT = `
   select c.id, p.key || '-' || c.number as key, c.number, c.project_id, c.board_id, c.column_id, col.name as column_name,
          c.title, c.description, c.area_id, a.name as area_name, c.priority, c.assignee_id, au.name as assignee_name,
          c.tags, c.fields, c.estimate, c.due_date, c.sort, c.external_key, c.created_at, c.updated_at, c.archived_at,
-         cu.name as created_by_name, uu.name as updated_by_name,
+         cu.name as created_by_name, uu.name as updated_by_name, p.logo_updated_at as project_logo_at,
          (select count(*) from card_comments cc where cc.card_id = c.id and cc.deleted_at is null) as comment_count,
          (select count(*) from attachments at where at.card_id = c.id) as attachment_count
     from cards c
@@ -30,6 +30,7 @@ export type Card = {
   assignee_id: string | null; assignee_name: string | null; tags: string[]; fields: Record<string, unknown>;
   estimate: string; due_date: string | null; sort: number; external_key: string | null; created_at: string; updated_at: string;
   archived_at: string | null; created_by_name: string | null; updated_by_name: string | null; comment_count: number; attachment_count: number;
+  project_logo_at: string | null;
 };
 
 export async function loadCard(id: string, db?: Db): Promise<Card> {

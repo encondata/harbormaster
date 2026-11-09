@@ -1,3 +1,4 @@
+import sharp from 'sharp';
 import { z } from 'zod';
 import { syncProjectFolders } from './wiki.js';
 import { audit, diff } from '../audit.js';
@@ -5,6 +6,7 @@ import { getProjectPerms, requireGlobal, requireProject, type Ctx } from '../aut
 import { one, q, tx, type Db } from '../db.js';
 import { badRequest, conflict, notFound } from '../errors.js';
 import { publish } from '../events.js';
+import { deleteObject, getObject, putObject } from '../storage.js';
 import type { FieldDef } from './common.js';
 
 export type ColumnSpec = { name: string; category?: 'todo' | 'active' | 'done' | 'closed'; color?: string; parity_weight?: number | null; wip_limit?: number | null };
@@ -91,7 +93,7 @@ export async function createProject(ctx: Ctx, input: z.infer<typeof projectInput
 
 export async function getProject(ctx: Ctx, projectId: string) {
   const perms = await requireProject(ctx, projectId, 'project.view');
-  const p = await one(`select id, key, name, description, archived_at, created_at, updated_at from projects where id = $1`, [projectId]);
+  const p = await one(`select id, key, name, description, archived_at, created_at, updated_at, logo_updated_at from projects where id = $1`, [projectId]);
   if (!p) throw notFound('Project not found');
   const boards = await q(
     `select b.id, b.key, b.name, b.description, b.sort, b.field_defs, b.parity_enabled, b.archived_at,
@@ -420,3 +422,46 @@ export async function canSee(ctx: Ctx, projectId: string) {
 }
 
 export { actorId };
+
+// ----- project logo (printed faintly behind printed cards) -----
+
+const LOGO_FORMATS = new Set(['png', 'jpeg', 'webp', 'gif', 'svg', 'heif']);
+export const MAX_LOGO_BYTES = 8 * 1024 * 1024;
+
+/** Re-encodes the upload as a PNG (keeps transparency, drops metadata, never stores SVG), trimmed and at most 800 px. */
+export async function setProjectLogo(ctx: Ctx, projectId: string, data: Buffer) {
+  await requireProject(ctx, projectId, 'project.manage');
+  let out: Buffer;
+  try {
+    const img = sharp(data, { limitInputPixels: 50_000_000, failOn: 'error', density: 300 });
+    const meta = await img.metadata();
+    if (!meta.format || !LOGO_FORMATS.has(meta.format)) throw new Error('format');
+    out = await img.rotate().trim({ threshold: 10 }).resize(800, 800, { fit: 'inside', withoutEnlargement: true }).png().toBuffer();
+  } catch {
+    throw badRequest('That file is not an image we can read. Use a PNG, JPG, WebP, GIF, SVG or HEIC image.');
+  }
+  const key = `projects/${projectId}/logo.png`;
+  await putObject(key, out, 'image/png');
+  const row = await one<{ logo_updated_at: string }>(`update projects set logo_key = $2, logo_updated_at = now() where id = $1 returning logo_updated_at`, [projectId, key]);
+  await audit(ctx, { action: 'project.logo_updated', entityType: 'project', entityId: projectId, projectId, summary: 'Changed the project logo' });
+  publish({ projectId, type: 'project.updated', actor: ctx.user.name });
+  return row!;
+}
+
+export async function removeProjectLogo(ctx: Ctx, projectId: string) {
+  await requireProject(ctx, projectId, 'project.manage');
+  const p = await one<{ logo_key: string | null }>(`select logo_key from projects where id = $1`, [projectId]);
+  if (!p?.logo_key) return { ok: true };
+  await q(`update projects set logo_key = null, logo_updated_at = null where id = $1`, [projectId]);
+  await deleteObject(p.logo_key).catch(() => {});
+  await audit(ctx, { action: 'project.logo_removed', entityType: 'project', entityId: projectId, projectId, summary: 'Removed the project logo' });
+  publish({ projectId, type: 'project.updated', actor: ctx.user.name });
+  return { ok: true };
+}
+
+export async function projectLogo(ctx: Ctx, projectId: string) {
+  await requireProject(ctx, projectId, 'project.view');
+  const p = await one<{ logo_key: string | null }>(`select logo_key from projects where id = $1`, [projectId]);
+  if (!p?.logo_key) throw notFound('No logo');
+  return getObject(p.logo_key);
+}

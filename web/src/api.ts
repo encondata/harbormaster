@@ -52,7 +52,7 @@ export type Board = { id: string; key: string; name: string; description: string
 
 export type Area = { id: string; name: string; sort: number; priority: string; expected_date: string; notes: string; updated_at: string };
 
-export type Project = { id: string; key: string; name: string; description: string; archived_at: string | null; permissions: string[]; boards: Board[]; areas: Area[]; requests: { new: number; open: number }; wiki_folder_id?: string | null };
+export type Project = { id: string; key: string; name: string; description: string; archived_at: string | null; permissions: string[]; boards: Board[]; areas: Area[]; requests: { new: number; open: number }; wiki_folder_id?: string | null; logo_updated_at: string | null };
 
 export type ProjectListItem = { id: string; key: string; name: string; description: string; archived_at: string | null; my_role: string | null; card_count: number; member_count: number };
 
@@ -67,6 +67,7 @@ export type Card = {
   assignee_id: string | null; assignee_name: string | null; tags: string[]; fields: Record<string, any>; estimate: string;
   due_date: string | null; sort: number; external_key: string | null; created_at: string; updated_at: string; archived_at: string | null;
   created_by_name: string | null; updated_by_name: string | null; comment_count: number; attachment_count: number;
+  project_logo_at?: string | null;
 };
 
 export type Priority = 'critical' | 'high' | 'medium' | 'low';
@@ -98,3 +99,7 @@ export type FeatureRequest = {
   duplicate_of: string | null; duplicate_key: string | null; duplicate_title: string | null; decision_note: string;
   decided_by_name: string | null; decided_at: string | null; created_at: string; updated_at: string; votes: number; comment_count: number; voted?: boolean;
 };
+
+/** The faint logo on printed cards: the project's own, or the built-in H. */
+export const cardLogoUrl = (projectKey: string, logoAt: string | null | undefined) =>
+  logoAt ? `/api/projects/${encodeURIComponent(projectKey)}/logo?v=${encodeURIComponent(logoAt)}` : '/card-logo.png';

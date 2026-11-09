@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import QRCode from 'qrcode';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { api, type Card } from '../api';
-import { IndexCard, PageSize } from '../components/IndexCard';
+import { api, cardLogoUrl, type Card } from '../api';
+import { IndexCard, PageSize, printWhenImagesLoaded } from '../components/IndexCard';
 import { ErrorBox, Spinner } from '../components/ui';
 
 const PER_PAGE = 6;
@@ -39,8 +39,7 @@ export default function PrintSheet() {
   useEffect(() => {
     if (!ready || !cards.data!.length || sp.get('autoprint') !== '1') return;
     document.title = `${heading} cards`;
-    // Let the logo image load before the print dialog snapshots the page.
-    const t = setTimeout(() => window.print(), 400);
+    const t = setTimeout(printWhenImagesLoaded, 100);
     return () => clearTimeout(t);
   }, [ready, sp, heading, cards.data]);
 
@@ -68,7 +67,7 @@ export default function PrintSheet() {
         <div className="print-sheet" key={p}>
           {page.map((c, i) => (
             <div className="sheet-cell" key={c.id}>
-              <IndexCard card={c} qr={qrs![p * PER_PAGE + i]} width="4in" height="3.5in" scale={0.8} />
+              <IndexCard card={c} qr={qrs![p * PER_PAGE + i]} logo={cardLogoUrl(project, c.project_logo_at)} width="4in" height="3.5in" scale={0.8} />
             </div>
           ))}
         </div>

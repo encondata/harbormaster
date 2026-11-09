@@ -741,6 +741,11 @@ a.wiki-list-row:hover { background: var(--bg-sunken); text-decoration: none; }
   .wiki-comment.reply { margin-left: 16px; }
 }
 
+/* Project settings: card logo preview (white like the printed card, logo at print opacity). */
+.logo-setting { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.logo-preview { flex: none; width: 150px; height: 90px; display: grid; place-items: center; background: #fff; border: 1px solid var(--border); border-radius: 6px; }
+.logo-preview img { max-width: 70%; max-height: 80%; object-fit: contain; opacity: 0.3; }
+
 /* ----- printed index cards: one 3×5 card, or six per letter sheet -----
    Sizes are written for a 5×3 in card and multiplied by --s, so smaller cells keep the same design. */
 .print-shell { min-height: 100vh; padding: 32px 16px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
@@ -754,7 +759,11 @@ a.wiki-list-row:hover { background: var(--bg-sunken); text-decoration: none; }
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18); border-radius: 4px;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
-.index-card .ic-logo { position: absolute; left: 50%; bottom: calc(var(--s) * 0.1in); width: calc(var(--s) * 1.5in); transform: translateX(-50%); opacity: 0.3; pointer-events: none; }
+/* Centred on the whole card; any logo shape is fitted inside the same box. */
+.index-card .ic-logo {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: calc(var(--s) * 3.4in); height: calc(var(--s) * 1.6in); object-fit: contain; opacity: 0.3; pointer-events: none;
+}
 .index-card .ic-qr { position: absolute; top: calc(var(--s) * 0.16in); right: calc(var(--s) * 0.2in); width: calc(var(--s) * 0.72in); text-align: center; }
 .index-card .ic-qr-code { display: block; width: calc(var(--s) * 0.72in); height: calc(var(--s) * 0.72in); }
 .index-card .ic-key { margin-top: 2px; font: 600 calc(var(--s) * 7pt)/1 ui-monospace, Menlo, monospace; letter-spacing: 0.02em; }

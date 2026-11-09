@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { api, type Board, type Column, type FieldDef, type Project, type Role } from '../../api';
+import { useEffect, useRef, useState } from 'react';
+import { api, cardLogoUrl, type Board, type Column, type FieldDef, type Project, type Role } from '../../api';
 import { Avatar, Confirm, ErrorBox, Modal, useToast } from '../../components/ui';
 import { COLORS, colorVar, dateTime } from '../../lib/format';
 import { canDo } from '../../lib/project';
@@ -35,6 +35,56 @@ function General({ project }: { project: Project }) {
           <button className="btn primary" onClick={async () => { try { await api.patch(`/api/projects/${project.key}`, { name, description }); refresh(); toast('Saved'); } catch (e) { setErr(e); } }}>Save</button>
           <span className="grow" />
           <button className="btn" onClick={async () => { await api.patch(`/api/projects/${project.key}`, { archived: !project.archived_at }); refresh(); }}>{project.archived_at ? 'Unarchive project' : 'Archive project'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Logo({ project }: { project: Project }) {
+  const refresh = useRefresh(project);
+  const toast = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>(null);
+  const upload = async (f: File) => {
+    setErr(null);
+    if (f.size > 8 * 1024 * 1024) return setErr(new Error(`That image is ${(f.size / 1048576).toFixed(1)} MB. Choose one under 8 MB.`));
+    setBusy(true);
+    const fd = new FormData();
+    fd.append('file', f);
+    try {
+      await api.post(`/api/projects/${project.key}/logo`, fd);
+      refresh();
+      toast('Logo updated');
+    } catch (e) {
+      setErr(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="card-box">
+      <div className="hd"><h2>Card logo</h2></div>
+      <div className="bd logo-setting">
+        <div className="logo-preview" aria-label="How the logo looks on a printed card">
+          <img src={cardLogoUrl(project.key, project.logo_updated_at)} alt="" />
+        </div>
+        <div className="stack-sm">
+          <div>Printed faintly behind every printed card. {project.logo_updated_at ? 'This project uses its own logo.' : 'This project uses the default H logo.'}</div>
+          <div className="faint small">PNG with a transparent background works best. JPG, WebP, GIF, SVG and HEIC also work, up to 8 MB. Blank edges are trimmed.</div>
+          <div className="btn-row">
+            <button className="btn" disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? 'Uploading…' : project.logo_updated_at ? 'Replace logo' : 'Upload logo'}</button>
+            {project.logo_updated_at && (
+              <button className="btn ghost" disabled={busy} onClick={async () => {
+                setErr(null);
+                try { await api.del(`/api/projects/${project.key}/logo`); refresh(); toast('Back to the default logo'); } catch (e) { setErr(e); }
+              }}>Use default logo</button>
+            )}
+          </div>
+          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/heic,image/heif" hidden
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) upload(f); }} />
+          <ErrorBox error={err} />
         </div>
       </div>
     </div>
@@ -400,6 +450,7 @@ export default function Settings() {
     <div className="page page-narrow">
       <div className="stack">
         <General project={project} />
+        <Logo project={project} />
         <Members project={project} />
         <Boards project={project} />
         <Areas project={project} />

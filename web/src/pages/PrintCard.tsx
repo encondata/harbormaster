@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { api, type Card } from '../api';
-import { IndexCard, PageSize, useQrDataUrl } from '../components/IndexCard';
+import { api, cardLogoUrl, type Card } from '../api';
+import { IndexCard, PageSize, printWhenImagesLoaded, useQrDataUrl } from '../components/IndexCard';
 import { ErrorBox, Spinner } from '../components/ui';
 
 /**
@@ -23,8 +23,7 @@ export default function PrintCard() {
   useEffect(() => {
     if (!ready || sp.get('autoprint') !== '1') return;
     document.title = `${card.data!.key} card`;
-    // Let the logo image load before the print dialog snapshots the page.
-    const t = setTimeout(() => window.print(), 300);
+    const t = setTimeout(printWhenImagesLoaded, 100);
     return () => clearTimeout(t);
   }, [ready, sp, card.data]);
 
@@ -43,7 +42,7 @@ export default function PrintCard() {
         </div>
         <button className="btn primary" onClick={() => window.print()}>Print</button>
       </div>
-      <IndexCard card={c} qr={qr!} />
+      <IndexCard card={c} qr={qr!} logo={cardLogoUrl(c.key.split('-')[0], c.project_logo_at)} />
     </div>
   );
 }
