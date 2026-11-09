@@ -8,7 +8,7 @@ import { one, q } from '../db.js';
 import { badRequest, notFound } from '../errors.js';
 import { publish } from '../events.js';
 import {
-  addComment, cardHistory, cardInput, cardPatch, createCard, deleteComment, getCardForCtx, listCards, listComments, moveCard, setArchived, updateCard,
+  addComment, cardHistory, cardLinkToken, resolveCardLink, cardInput, cardPatch, createCard, deleteComment, getCardForCtx, listCards, listComments, moveCard, setArchived, updateCard,
 } from '../services/cards.js';
 import { resolveArea, resolveBoard, resolveProject } from '../services/common.js';
 import { requestForCard } from '../services/requests.js';
@@ -55,6 +55,15 @@ export default async function cardRoutes(app: FastifyInstance) {
     ]);
     return { ...card, comments, attachments, history, request: request ?? null };
   });
+
+  /** The QR link printed on a card. Creates the card's link token the first time. */
+  app.post('/api/cards/:card/link', async (req) => {
+    const ctx = requireUser(req);
+    const card = await getCardForCtx(ctx, (req.params as any).card);
+    return { url: `${config.publicUrl}/c/${await cardLinkToken(card.id)}` };
+  });
+
+  app.get('/api/card-links/:token', async (req) => resolveCardLink(requireUser(req), (req.params as any).token));
 
   app.patch('/api/cards/:card', async (req) => {
     const ctx = requireUser(req);

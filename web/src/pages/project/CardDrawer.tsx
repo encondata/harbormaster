@@ -133,6 +133,7 @@ export default function CardDrawer({ cardKey, project, onClose }: { cardKey: str
           {card?.archived_at && <span className="badge warn">Archived</span>}
           <span className="grow" />
           <button className="btn ghost sm" onClick={() => { navigator.clipboard?.writeText(window.location.href); toast('Link copied'); }}>Copy link</button>
+          <a className="btn ghost sm" href={`/print/card/${encodeURIComponent(cardKey)}?autoprint=1`} target="_blank" rel="noreferrer" title="Print on a 3×5 index card">Print</a>
           {card && canDo(project, 'card.archive') && (
             card.archived_at
               ? <button className="btn sm" onClick={async () => { await api.post(`/api/cards/${cardKey}/archive`, { archived: false }); refresh(); toast('Card restored'); }}>Restore</button>
