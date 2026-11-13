@@ -15,9 +15,24 @@ const GOOGLE_ERRORS: Record<string, (email: string) => string> = {
   google_no_account: (e) => `No Harbor Master account uses ${e || 'that email'}. Ask an administrator to add you, then try again.`,
   google_disabled: () => 'Your account is deactivated. Ask an administrator to reactivate it.',
   google_mismatch: () => 'Your account is linked to a different Google account. Ask an administrator to unlink it.',
+  hsl_off: () => "HackSpaceLabs sign-in isn't set up on this server yet.",
+  hsl_cancelled: () => 'HackSpaceLabs sign-in was cancelled.',
+  hsl_failed: () => "HackSpaceLabs sign-in didn't complete. Please try again.",
+  hsl_expired: () => 'That sign-in attempt timed out. Please try again.',
+  hsl_email_taken: () => 'A Harbor Master account already uses your HackSpaceLabs email. Sign in with your password or Google, then link HackSpaceLabs from your Account page.',
+  hsl_disabled: () => 'Your account is deactivated. Ask an administrator to reactivate it.',
+  hsl_mismatch: () => 'Your account is linked to a different HackSpaceLabs account. Ask an administrator to unlink it.',
 };
 
 const safeNext = (n: string | null) => (n && n.startsWith('/') && !n.startsWith('//') ? n : '/');
+
+export function HslMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7z" /><path d="M9 8.5v7M15 8.5v7M9 12h6" />
+    </svg>
+  );
+}
 
 function GoogleMark() {
   return (
@@ -43,9 +58,11 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const qc = useQueryClient();
   const nav = useNavigate();
-  const providers = useQuery({ queryKey: ['auth-providers'], queryFn: () => api.get<{ google: boolean }>('/api/auth/providers'), staleTime: 300_000 });
+  const providers = useQuery({ queryKey: ['auth-providers'], queryFn: () => api.get<{ google: boolean; hsl?: boolean }>('/api/auth/providers'), staleTime: 300_000 });
   const googleOn = !!providers.data?.google;
   const googleHref = `/api/auth/google/start?${new URLSearchParams({ next, remember: remember ? '1' : '0' })}`;
+  const hslOn = !!providers.data?.hsl;
+  const hslHref = `/api/auth/hsl/start?${new URLSearchParams({ next, remember: remember ? '1' : '0' })}`;
 
   return (
     <div className="auth">
@@ -127,6 +144,8 @@ export default function Login() {
 
           <div className="auth-or"><span>or</span></div>
 
+          {hslOn && <a className="auth-google" href={hslHref}><HslMark /> Sign in with HackSpaceLabs</a>}
+
           {googleOn ? (
             <a className="auth-google" href={googleHref}><GoogleMark /> Sign in with Google</a>
           ) : (
@@ -136,7 +155,7 @@ export default function Login() {
             </>
           )}
 
-          <p className="auth-foot">Accounts are created by your administrator.</p>
+          <p className="auth-foot">{hslOn ? 'New here? Sign in with HackSpaceLabs to get an account. An administrator then adds you to projects.' : 'Accounts are created by your administrator.'}</p>
         </form>
       </main>
     </div>

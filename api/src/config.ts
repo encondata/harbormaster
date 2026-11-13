@@ -40,6 +40,13 @@ export const config = {
     jwksUrl: process.env.GOOGLE_OAUTH_JWKS_URL || 'https://www.googleapis.com/oauth2/v3/certs',
     issuers: (process.env.GOOGLE_OAUTH_ISSUERS || 'https://accounts.google.com,accounts.google.com').split(','),
   },
+  // Sign in with HackSpaceLabs (the HSL Keycloak realm). Off unless the issuer and secret are set.
+  // The HSL installer's scripts/harbormaster-secret.mjs writes all three.
+  hsl: {
+    issuer: (process.env.HSL_OIDC_ISSUER ?? '').replace(/\/$/, ''),
+    clientId: process.env.HSL_OIDC_CLIENT_ID || 'harbormaster',
+    clientSecret: process.env.HSL_OIDC_CLIENT_SECRET ?? '',
+  },
   // Time zone for scheduled jobs such as the daily sheet export.
   timezone: env('TIMEZONE', 'UTC'),
 };

@@ -1,48 +1,21 @@
 // "Sign in with Google" (OpenID Connect, authorization code flow with PKCE).
 // Only existing, active accounts can sign in: the verified Google email must match a user,
 // and after the first sign-in the Google account id is linked to that user.
-import { createHash, createPublicKey, createVerify } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { audit } from '../audit.js';
 import { createSession, randomToken, setSessionCookie, sha256, type Ctx } from '../auth.js';
 import { config } from '../config.js';
 import { one, q } from '../db.js';
+import { safeNext, verifyOidcIdToken, type IdClaims } from '../oidc.js';
+import { hslEnabled } from './hsl-auth.js';
 
 export const googleEnabled = () => !!(config.google.clientId && config.google.clientSecret);
 const redirectUri = () => `${config.publicUrl}/api/auth/google/callback`;
-const safeNext = (n: unknown) => (typeof n === 'string' && n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/api/') ? n.slice(0, 2000) : '/');
 
-let jwksCache: { keys: any[]; at: number } | null = null;
-async function googleKeys(force = false) {
-  if (!force && jwksCache && Date.now() - jwksCache.at < 3600_000) return jwksCache.keys;
-  const res = await fetch(config.google.jwksUrl, { signal: AbortSignal.timeout(15_000) });
-  if (!res.ok) throw new Error(`could not load Google signing keys (${res.status})`);
-  jwksCache = { keys: ((await res.json()) as any).keys ?? [], at: Date.now() };
-  return jwksCache.keys;
-}
-
-type IdClaims = { iss: string; aud: string; sub: string; email?: string; email_verified?: boolean; hd?: string; name?: string; nonce?: string; exp: number; iat: number };
-
-/** Verifies an ID token's signature (RS256 against Google's keys) and its claims. */
-export async function verifyIdToken(idToken: string, nonce: string): Promise<IdClaims> {
-  const [h, p, sig] = idToken.split('.');
-  if (!h || !p || !sig) throw new Error('malformed ID token');
-  const header = JSON.parse(Buffer.from(h, 'base64url').toString());
-  if (header.alg !== 'RS256') throw new Error('unexpected token algorithm');
-  let jwk = (await googleKeys()).find((k) => k.kid === header.kid);
-  if (!jwk) jwk = (await googleKeys(true)).find((k) => k.kid === header.kid);
-  if (!jwk) throw new Error('unknown signing key');
-  const v = createVerify('RSA-SHA256');
-  v.update(`${h}.${p}`);
-  if (!v.verify(createPublicKey({ key: jwk, format: 'jwk' }), Buffer.from(sig, 'base64url'))) throw new Error('bad token signature');
-  const c = JSON.parse(Buffer.from(p, 'base64url').toString()) as IdClaims;
-  const now = Math.floor(Date.now() / 1000);
-  if (!config.google.issuers.includes(c.iss)) throw new Error('wrong token issuer');
-  if (c.aud !== config.google.clientId) throw new Error('token was not issued for this app');
-  if (c.exp < now - 60) throw new Error('token expired');
-  if (c.nonce !== nonce) throw new Error('nonce mismatch');
-  return c;
-}
+/** Verifies a Google ID token's signature and claims. */
+export const verifyIdToken = (idToken: string, nonce: string): Promise<IdClaims> =>
+  verifyOidcIdToken(idToken, { jwksUrl: config.google.jwksUrl, issuers: config.google.issuers, clientId: config.google.clientId, nonce });
 
 function fail(reply: FastifyReply, code: string, extra: Record<string, string> = {}) {
   const qs = new URLSearchParams({ error: code, ...extra });
@@ -50,7 +23,7 @@ function fail(reply: FastifyReply, code: string, extra: Record<string, string> =
 }
 
 export default async function googleAuthRoutes(app: FastifyInstance) {
-  app.get('/api/auth/providers', async () => ({ google: googleEnabled() }));
+  app.get('/api/auth/providers', async () => ({ google: googleEnabled(), hsl: hslEnabled() }));
 
   app.get('/api/auth/google/start', { config: { rateLimit: { max: 30, timeWindow: '5 minutes' } } }, async (req, reply) => {
     if (!googleEnabled()) return fail(reply, 'google_off');
@@ -60,7 +33,7 @@ export default async function googleAuthRoutes(app: FastifyInstance) {
     const verifier = randomToken(48);
     await q(`delete from oauth_states where expires_at < now()`);
     await q(
-      `insert into oauth_states (id, nonce, code_verifier, next_path, remember, expires_at) values ($1, $2, $3, $4, $5, now() + interval '10 minutes')`,
+      `insert into oauth_states (id, provider, nonce, code_verifier, next_path, remember, expires_at) values ($1, 'google', $2, $3, $4, $5, now() + interval '10 minutes')`,
       [sha256(state), nonce, verifier, safeNext(f.next), f.remember !== '0'],
     );
     const params = new URLSearchParams({
@@ -83,7 +56,7 @@ export default async function googleAuthRoutes(app: FastifyInstance) {
     if (f.error) return fail(reply, f.error === 'access_denied' ? 'google_cancelled' : 'google_failed');
     if (!googleEnabled() || !f.state || !f.code) return fail(reply, 'google_failed');
     const st = await one<{ nonce: string; code_verifier: string; next_path: string; remember: boolean }>(
-      `delete from oauth_states where id = $1 and expires_at > now() returning nonce, code_verifier, next_path, remember`,
+      `delete from oauth_states where id = $1 and provider = 'google' and expires_at > now() returning nonce, code_verifier, next_path, remember`,
       [sha256(f.state)],
     );
     if (!st) return fail(reply, 'google_expired');

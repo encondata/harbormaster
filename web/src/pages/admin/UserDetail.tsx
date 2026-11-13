@@ -20,11 +20,12 @@ export default function UserDetail() {
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.get<ProjectListItem[]>('/api/projects') });
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [hslUser, setHslUser] = useState('');
   const [err, setErr] = useState<unknown>(null);
   const [reset, setReset] = useState<string | null | 'ask'>(null);
   const [confirm, setConfirm] = useState<'deactivate' | 'sessions' | null>(null);
   const u = q.data;
-  useEffect(() => { if (u) { setName(u.name); setEmail(u.email); } }, [u?.id, u?.name, u?.email]);
+  useEffect(() => { if (u) { setName(u.name); setEmail(u.email); setHslUser(u.hsl_username ?? ''); } }, [u?.id, u?.name, u?.email, u?.hsl_username]);
   if (!can('admin.users')) return <div className="page"><ErrorBox error="You do not have access to user administration." /></div>;
   if (q.isLoading) return <Spinner />;
   if (!u) return <div className="page"><ErrorBox error={q.error ?? 'User not found'} /></div>;
@@ -61,6 +62,23 @@ export default function UserDetail() {
                   <span className="muted">Google sign-in:</span>
                   {u.google_linked ? <span className="badge ok">Linked</span> : <span className="faint">not linked yet (links on first Google sign-in)</span>}
                   {u.google_linked && <button className="btn ghost sm" onClick={async () => { try { await api.post(`/api/admin/users/${id}/unlink-google`); refresh(); toast('Google account unlinked'); } catch (e) { setErr(e); } }}>Unlink</button>}
+                </div>
+              )}
+              {u.kind === 'human' && (
+                <div className="row small">
+                  <span className="muted">HackSpaceLabs sign-in:</span>
+                  {u.hsl_linked ? (
+                    <>
+                      <span className="badge ok">Linked</span>{u.hsl_username && <span className="mono faint">{u.hsl_username}</span>}
+                      <button className="btn ghost sm" onClick={async () => { try { await api.post(`/api/admin/users/${id}/unlink-hsl`); refresh(); toast('HackSpaceLabs account unlinked'); } catch (e) { setErr(e); } }}>Unlink</button>
+                    </>
+                  ) : (
+                    <>
+                      <input className="input sm" style={{ width: 200 }} placeholder="HSL username" aria-label="HackSpaceLabs username" value={hslUser} onChange={(e) => setHslUser(e.target.value)} />
+                      <button className="btn sm" disabled={hslUser.trim() === (u.hsl_username ?? '')} onClick={() => patch({ hsl_username: hslUser.trim() })}>Save</button>
+                      <span className="faint">{u.hsl_username ? 'links on their first HackSpaceLabs sign-in' : 'not linked. Enter their HSL username to link it on first sign-in, or they can link it from their Account page.'}</span>
+                    </>
+                  )}
                 </div>
               )}
               <div><button className="btn primary" disabled={name === u.name && email === u.email} onClick={() => patch({ name, email })}>Save</button></div>

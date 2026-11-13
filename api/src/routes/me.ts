@@ -46,7 +46,7 @@ export default async function meRoutes(app: FastifyInstance) {
     const ctx = requireUser(req);
     const u = await one(
       `select id, email, name, kind, is_active, created_at, last_login_at, password_changed_at, avatar_updated_at,
-              password_hash is not null as has_password, google_sub is not null as google_linked, ${PROFILE_FIELDS.join(', ')}
+              password_hash is not null as has_password, google_sub is not null as google_linked, hsl_sub is not null as hsl_linked, hsl_username, ${PROFILE_FIELDS.join(', ')}
          from users where id = $1`,
       [ctx.user.id],
     );
