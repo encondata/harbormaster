@@ -1,113 +1,149 @@
+/* Colors follow the HackSpaceLabs "H" mark: navy wordmark ink, warm amber/orange/red bands over
+   cool sky/cyan/blue bands. --brand-bands paints those stripes (logo, banners); everything else
+   uses the tokens below so light and dark mode stay in step. */
 :root {
-  --bg: #f5f6f8;
-  --bg-sunken: #eceef2;
+  --hsl-amber: #ffae26;
+  --hsl-gold: #fcc662;
+  --hsl-orange: #fd6a17;
+  --hsl-red: #ec1f24;
+  --hsl-sky: #72d6ec;
+  --hsl-cyan: #00acd1;
+  --hsl-blue: #0088b1;
+  --hsl-navy: #02365e;
+  --brand-bands: linear-gradient(180deg,
+    var(--hsl-amber) 0 14%, var(--hsl-gold) 14% 24%, var(--hsl-orange) 24% 38%, var(--hsl-red) 38% 50%,
+    var(--hsl-sky) 50% 60%, var(--hsl-cyan) 60% 72%, var(--hsl-blue) 72% 84%, var(--hsl-navy) 84% 100%);
+  --brand-sweep: linear-gradient(100deg, var(--hsl-amber) 0%, var(--hsl-orange) 22%, var(--hsl-red) 40%, var(--hsl-cyan) 62%, var(--hsl-blue) 80%, var(--hsl-navy) 100%);
+
+  --bg: #f3f6f9;
+  --bg-sunken: #e8eef3;
   --surface: #ffffff;
-  --surface-2: #f9fafb;
-  --border: #e2e5ea;
-  --border-strong: #cbd0d8;
-  --text: #15181d;
-  --text-2: #4a5260;
-  --text-3: #858d99;
-  --accent: #1f5f6b;
-  --accent-hover: #174b55;
-  --accent-soft: #e2eef0;
+  --surface-2: #f7f9fb;
+  --border: #dce4eb;
+  --border-strong: #c3cfd9;
+  --text: #0d1f2d;
+  --text-2: #3f5366;
+  --text-3: #6f8192;
+  --accent: #02365e;
+  --accent-hover: #012844;
+  --accent-soft: #e0f2f9;
   --accent-text: #ffffff;
-  --danger: #b4372b;
-  --danger-soft: #fbe9e6;
-  --ok: #2f7d4f;
-  --ok-soft: #e4f2e8;
-  --warn: #a8661a;
-  --warn-soft: #fbefdc;
-  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 1px rgba(15, 23, 42, 0.04);
-  --shadow-2: 0 8px 28px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.08);
+  --link: #00739a;
+  --highlight: #fd6a17;
+  --danger: #c8161f;
+  --danger-soft: #fde8e7;
+  --ok: #2a7d4f;
+  --ok-soft: #e3f2e8;
+  --warn: #b4500e;
+  --warn-soft: #fff0e0;
+  --shadow-1: 0 1px 2px rgba(2, 30, 54, 0.07), 0 1px 1px rgba(2, 30, 54, 0.04);
+  --shadow-2: 0 8px 28px rgba(2, 30, 54, 0.15), 0 2px 6px rgba(2, 30, 54, 0.08);
   --radius: 8px;
   --radius-sm: 5px;
   --font: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 
-  --c-slate: #7b8494;
-  --c-blue: #3a6fc4;
-  --c-teal: #23877f;
+  --c-slate: #6f8192;
+  --c-blue: #0088b1;
+  --c-teal: #00a5a8;
   --c-green: #2f8a4f;
-  --c-amber: #c48a1b;
-  --c-orange: #cc6a25;
-  --c-red: #c4433a;
+  --c-amber: #f0a01a;
+  --c-orange: #fd6a17;
+  --c-red: #ec1f24;
   --c-violet: #7a58c2;
-  --c-gray: #9a968c;
+  --c-gray: #9aa3ad;
 
-  --p-critical: #c4433a;
-  --p-high: #cc6a25;
-  --p-medium: #3a6fc4;
-  --p-low: #858d99;
-  --hero-sky: #e6f0f5;
+  --p-critical: #d9161f;
+  --p-high: #e0580c;
+  --p-medium: #0088b1;
+  --p-low: #6f8192;
+  --hero-sky: #e3f4fa;
   --hero-shade: transparent;
-  --hero-ink: #12343b;
-  --hero-sub: #4c6670;
-  --hero-chip: rgba(255, 255, 255, 0.75);
+  --hero-ink: #02365e;
+  --hero-sub: #3f5d74;
+  --hero-chip: rgba(255, 255, 255, 0.78);
   --panel: #ffffff;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #121418;
-    --bg-sunken: #0c0e11;
-    --surface: #1a1d22;
-    --surface-2: #20242a;
-    --border: #2c3138;
-    --border-strong: #3b414a;
-    --text: #e8eaee;
-    --text-2: #a9b0ba;
-    --text-3: #747c87;
-    --accent: #5fb3bf;
-    --accent-hover: #79c4cf;
-    --accent-soft: #1d3236;
-    --accent-text: #0d1a1c;
-    --danger: #e0695d;
-    --danger-soft: #3a1d1a;
-    --ok: #62c08a;
-    --ok-soft: #17301f;
-    --warn: #e0a24f;
-    --warn-soft: #36290f;
-    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-2: 0 10px 30px rgba(0, 0, 0, 0.55);
-    --hero-sky: #18242b;
-    --hero-shade: rgba(6, 16, 22, 0.62);
-    --hero-ink: #e6f1f4;
-    --hero-sub: #a6bcc4;
+    --bg: #0a1520;
+    --bg-sunken: #060f18;
+    --surface: #0f1e2c;
+    --surface-2: #142636;
+    --border: #1e3346;
+    --border-strong: #2b4459;
+    --text: #e5edf4;
+    --text-2: #a2b4c4;
+    --text-3: #71879a;
+    --accent: #2fbfe0;
+    --accent-hover: #6fd6ec;
+    --accent-soft: #0c3044;
+    --accent-text: #03121c;
+    --link: #5fd0ea;
+    --highlight: #ff8a3d;
+    --danger: #ff5b50;
+    --danger-soft: #3a1416;
+    --ok: #5cc98a;
+    --ok-soft: #12301f;
+    --warn: #ffae26;
+    --warn-soft: #3a2a0c;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.45);
+    --shadow-2: 0 10px 30px rgba(0, 0, 0, 0.6);
+    --c-slate: #8395a6;
+    --c-blue: #22a9d6;
+    --c-red: #ff4b4f;
+    --p-critical: #ff4b4f;
+    --p-high: #ff8a3d;
+    --p-medium: #3cc3e3;
+    --p-low: #8395a6;
+    --hero-sky: #0f1f2c;
+    --hero-shade: rgba(4, 14, 24, 0.62);
+    --hero-ink: #e6f1f7;
+    --hero-sub: #a6bccb;
     --hero-chip: rgba(255, 255, 255, 0.08);
-    --panel: #1a1d22;
+    --panel: #0f1e2c;
     color-scheme: dark;
   }
 }
 :root[data-theme='dark'] {
-  --bg: #121418;
-  --bg-sunken: #0c0e11;
-  --surface: #1a1d22;
-  --surface-2: #20242a;
-  --border: #2c3138;
-  --border-strong: #3b414a;
-  --text: #e8eaee;
-  --text-2: #a9b0ba;
-  --text-3: #747c87;
-  --accent: #5fb3bf;
-  --accent-hover: #79c4cf;
-  --accent-soft: #1d3236;
-  --accent-text: #0d1a1c;
-  --danger: #e0695d;
-  --danger-soft: #3a1d1a;
-  --ok: #62c08a;
-  --ok-soft: #17301f;
-  --warn: #e0a24f;
-  --warn-soft: #36290f;
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 10px 30px rgba(0, 0, 0, 0.55);
-  --hero-sky: #18242b;
-  --hero-shade: rgba(6, 16, 22, 0.62);
-  --hero-ink: #e6f1f4;
-  --hero-sub: #a6bcc4;
+  --bg: #0a1520;
+  --bg-sunken: #060f18;
+  --surface: #0f1e2c;
+  --surface-2: #142636;
+  --border: #1e3346;
+  --border-strong: #2b4459;
+  --text: #e5edf4;
+  --text-2: #a2b4c4;
+  --text-3: #71879a;
+  --accent: #2fbfe0;
+  --accent-hover: #6fd6ec;
+  --accent-soft: #0c3044;
+  --accent-text: #03121c;
+  --link: #5fd0ea;
+  --highlight: #ff8a3d;
+  --danger: #ff5b50;
+  --danger-soft: #3a1416;
+  --ok: #5cc98a;
+  --ok-soft: #12301f;
+  --warn: #ffae26;
+  --warn-soft: #3a2a0c;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-2: 0 10px 30px rgba(0, 0, 0, 0.6);
+  --c-slate: #8395a6;
+  --c-blue: #22a9d6;
+  --c-red: #ff4b4f;
+  --p-critical: #ff4b4f;
+  --p-high: #ff8a3d;
+  --p-medium: #3cc3e3;
+  --p-low: #8395a6;
+  --hero-sky: #0f1f2c;
+  --hero-shade: rgba(4, 14, 24, 0.62);
+  --hero-ink: #e6f1f7;
+  --hero-sub: #a6bccb;
   --hero-chip: rgba(255, 255, 255, 0.08);
-  --panel: #1a1d22;
+  --panel: #0f1e2c;
   color-scheme: dark;
 }
 
@@ -120,7 +156,7 @@ body {
   font: 14px/1.45 var(--font);
   -webkit-font-smoothing: antialiased;
 }
-a { color: var(--accent); text-decoration: none; }
+a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
 h1, h2, h3, h4 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
 h1 { font-size: 20px; }
@@ -137,9 +173,11 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column; min-height: 0;
 }
+/* A thin stripe of the H mark's colors across the top of the sidebar. */
+.sidebar::before { content: ''; flex: none; height: 3px; background: var(--brand-sweep); }
 .brand { display: flex; align-items: center; gap: 10px; padding: 16px 16px 12px; font-weight: 700; letter-spacing: -0.02em; }
-/* The logo is a transparent mask filled with the accent color, so it follows light and dark mode. */
-.logo { display: inline-block; flex: none; width: 28px; height: 28px; background: var(--accent); -webkit-mask: url(/logo.png) center / contain no-repeat; mask: url(/logo.png) center / contain no-repeat; }
+/* The logo is a transparent mask filled with the H mark's bands. */
+.logo { display: inline-block; flex: none; width: 28px; height: 28px; background: var(--brand-bands); -webkit-mask: url(/logo.png) center / contain no-repeat; mask: url(/logo.png) center / contain no-repeat; }
 .nav { padding: 4px 8px; overflow: auto; flex: 1; }
 .nav-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); padding: 14px 8px 4px; font-weight: 600; }
 .nav a {
@@ -147,7 +185,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
   color: var(--text-2); font-weight: 500;
 }
 .nav a:hover { background: var(--surface); color: var(--text); text-decoration: none; }
-.nav a.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-1); }
+.nav a.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-1), inset 3px 0 0 var(--highlight); }
 .nav .sub { padding-left: 26px; font-weight: 450; font-size: 13px; }
 .nav .key { font-family: var(--mono); font-size: 11px; color: var(--text-3); margin-left: auto; }
 .sidebar-foot { border-top: 1px solid var(--border); padding: 8px; }
@@ -197,11 +235,11 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
 .eyebrow { display: flex; align-items: center; gap: 16px; font-size: 12px; font-weight: 650; letter-spacing: 0.32em; text-transform: uppercase; color: var(--accent); }
 .eyebrow::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 .profile-banner { overflow: hidden; }
-.profile-band { height: 72px; background: linear-gradient(100deg, #164a55 0%, var(--accent) 55%, #2f8aa0 100%); }
+.profile-band { height: 72px; background: var(--brand-sweep); }
 .profile-head { display: flex; gap: 28px; padding: 0 32px 24px; flex-wrap: wrap; }
 .profile-photo { position: relative; margin-top: -44px; flex: none; }
 .profile-photo .avatar { border-radius: 22px; border: 4px solid var(--surface); box-shadow: var(--shadow-2); display: grid; place-items: center; }
-.profile-photo-edit { position: absolute; inset: 4px; border: 0; border-radius: 18px; background: rgba(10, 30, 36, 0.55); color: #fff; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; opacity: 0; transition: opacity 0.15s; }
+.profile-photo-edit { position: absolute; inset: 4px; border: 0; border-radius: 18px; background: rgba(2, 30, 54, 0.6); color: #fff; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; opacity: 0; transition: opacity 0.15s; }
 .profile-photo:hover .profile-photo-edit, .profile-photo-edit:focus-visible, .profile-photo-edit:disabled { opacity: 1; }
 @media (hover: none) { .profile-photo-edit { opacity: 1; inset: auto 4px 4px 4px; height: 28px; border-radius: 0 0 18px 18px; } }
 .profile-id { flex: 1; min-width: 260px; padding-top: 18px; display: grid; gap: 6px; align-content: start; }
