@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import Mark from '../components/Mark';
 
 const ICON = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
 
@@ -52,7 +53,7 @@ export default function Login() {
       <section className="auth-hero" aria-label="Harbor Master">
         <div className="hero-copy">
           <div className="hero-brand">
-            <span className="logo hero-logo" aria-hidden="true" />
+            <Mark className="logo hero-logo" />
             <h1>Harbor<br />Master</h1>
           </div>
           <p className="hero-tagline">Navigate your projects with clarity.</p>
@@ -80,7 +81,7 @@ export default function Login() {
           }
         }}>
           <div className="auth-brand">
-            <span className="logo" aria-hidden="true" />
+            <Mark className="logo" />
             <span>Harbor Master</span>
           </div>
           <div className="auth-head">

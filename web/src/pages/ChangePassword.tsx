@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api';
 import { ErrorBox, useToast } from '../components/ui';
 import { useAuth } from '../lib/auth';
+import Mark from '../components/Mark';
 
 export function PasswordForm({ onDone }: { onDone?: () => void }) {
   const [cur, setCur] = useState('');
@@ -42,7 +43,7 @@ export default function ChangePassword({ forced }: { forced?: boolean }) {
     <div className="login-wrap">
       <div className="login card-box">
         <div className="bd stack">
-          <div className="brand"><span className="logo" aria-hidden="true" /> Harbor Master</div>
+          <div className="brand"><Mark className="logo" /> Harbor Master</div>
           {forced && <div className="warn-box">Welcome{me ? `, ${me.name}` : ''}. Choose a new password before continuing.</div>}
           <PasswordForm onDone={refresh} />
           <a href="#" className="small faint" style={{ textAlign: 'center' }} onClick={async (e) => {
