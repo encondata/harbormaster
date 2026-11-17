@@ -8,10 +8,11 @@ import { authenticate, requireProject, requireUser, type Ctx } from './auth.js';
 import { config } from './config.js';
 import { one, q } from './db.js';
 import { HttpError } from './errors.js';
+import { parse } from './validate.js';
 import { resourceMetadataUrl } from './routes/oauth.js';
 import { addComment, cardHistory, createCard, getCardForCtx, listCards, listComments, moveCard, PRIORITIES, setArchived, updateCard, type Card } from './services/cards.js';
 import { resolveArea, resolveBoard, resolveProject } from './services/common.js';
-import { getProject, listProjectsFor, projectSummary, upsertArea } from './services/projects.js';
+import { createProject, getProject, listProjectsFor, projectInput, projectSummary, upsertArea } from './services/projects.js';
 import { createRequest, getRequestForCtx, listRequests, triage, triageInput } from './services/requests.js';
 import { getSkill, listSkills, MANIFEST, publishSkill } from './services/skills.js';
 import { listUpdates, saveUpdate, weekOf, weekTitle } from './services/updates.js';
@@ -54,7 +55,7 @@ function buildServer(ctx: Ctx) {
   const server = new McpServer({
     name: 'harbormaster',
     title: 'Harbor Master',
-    version: '0.3.0',
+    version: '0.4.0',
     websiteUrl: config.publicUrl,
     icons: [
       { src: `${config.publicUrl}/logo.png`, mimeType: 'image/png', sizes: ['512x512'] },
@@ -64,6 +65,7 @@ function buildServer(ctx: Ctx) {
     instructions:
       'Harbor Master tracks software development as projects > boards > columns > cards. Cards are referenced by key (e.g. SS-42). ' +
       'Start with get_project to learn the boards, column names, card fields and areas. Moving a card to another column is how status changes. ' +
+      'create_project starts a new project (with its own boards, columns and areas if you pass them) when the user asks for one. ' +
       'Every change you make is recorded in the audit history under your account. Prefer add_comment for notes about work done, ' +
       'and log_progress to add a line to the current week\'s progress update. Feature requests (keys like SS-R4) are separate from cards: ' +
       'use create_request when someone asks for something, and triage_request to accept one into a card. ' +
@@ -74,6 +76,48 @@ function buildServer(ctx: Ctx) {
 
   server.registerTool('list_projects', { title: 'List projects', description: 'Projects you can access, with your role and card counts.', inputSchema: {} },
     wrap(async () => (await listProjectsFor(ctx)).map((p) => ({ key: p.key, name: p.name, role: p.my_role, cards: p.card_count, archived: !!p.archived_at }))));
+
+  server.registerTool('create_project', {
+    title: 'Create project',
+    description:
+      'Create a new project (needs the projects.create permission); you become its Owner and its wiki folder (with Design and Operations) is created. ' +
+      'Without boards it gets one "Kanban" board (Backlog, To Do, In Progress, Review, Done). Only create a project when the user asks for one, ' +
+      'and check list_projects first so you do not duplicate an existing one.',
+    inputSchema: {
+      key: z.string().describe('2-10 uppercase letters/digits starting with a letter, e.g. "SS"; prefixes card keys (SS-42) and cannot be changed later'),
+      name: z.string(),
+      description: z.string().optional().describe('Markdown'),
+      boards: z.array(z.object({
+        key: z.string().describe('Lowercase slug, e.g. "kanban" or "bugs"'),
+        name: z.string(),
+        description: z.string().optional(),
+        columns: z.array(z.object({
+          name: z.string(),
+          category: z.enum(['todo', 'active', 'done', 'closed']).optional().describe('Default todo'),
+          color: z.enum(['slate', 'blue', 'teal', 'green', 'amber', 'orange', 'red', 'violet', 'gray']).optional(),
+        })).optional().describe('In order, left to right; default Backlog, To Do, In Progress, Review, Done'),
+        field_defs: z.array(z.object({
+          key: z.string().describe('lowercase_with_underscores'),
+          label: z.string(),
+          type: z.enum(['text', 'longtext', 'bool', 'number', 'date', 'url', 'select']),
+          options: z.array(z.string()).optional().describe('For select'),
+        })).optional().describe('Custom card fields'),
+      })).optional().describe('Boards to start with; default one Kanban board'),
+      areas: z.array(z.object({
+        name: z.string(),
+        priority: z.string().optional(),
+        expected_date: z.string().optional(),
+        notes: z.string().optional(),
+      })).optional().describe('Product areas cards can be grouped by'),
+    },
+  }, wrap(async (a: any) => {
+    const p = await createProject(ctx, parse(projectInput, a));
+    return {
+      key: p.key, name: p.name, url: `${config.publicUrl}/p/${p.key}`,
+      boards: p.boards.map((b: any) => ({ key: b.key, name: b.name, columns: b.columns.map((c: any) => c.name) })),
+      areas: p.areas.map((x: any) => x.name),
+    };
+  }));
 
   server.registerTool('get_project', {
     title: 'Get project structure',

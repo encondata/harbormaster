@@ -73,10 +73,26 @@ export const projectInput = z.object({
   key: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9]{1,9}$/, 'Key is 2-10 letters/digits, starting with a letter'),
   name: z.string().trim().min(1).max(120),
   description: z.string().max(5000).optional(),
+  // Optional starting structure; without boards the project gets the default Kanban board.
+  // Declared lazily because boardInput and areaInput are defined further down this file.
+  boards: z.lazy(() => z.array(boardInput).min(1).max(10)).optional(),
+  areas: z.lazy(() => z.array(areaInput.omit({ sort: true })).max(50)).optional(),
 });
 
 export async function createProject(ctx: Ctx, input: z.infer<typeof projectInput>, opts: { boards?: BoardSpec[] } = {}) {
   requireGlobal(ctx, 'projects.create');
+  const boards: BoardSpec[] = input.boards?.map((b) => ({ ...b, columns: b.columns ?? DEFAULT_BOARD.columns })) ?? opts.boards ?? [DEFAULT_BOARD];
+  const boardKeys = boards.map((b) => b.key);
+  if (new Set(boardKeys).size !== boardKeys.length) throw badRequest('Board keys must be unique');
+  for (const b of boards) {
+    const fieldKeys = (b.field_defs ?? []).map((f) => f.key);
+    if (new Set(fieldKeys).size !== fieldKeys.length) throw badRequest(`Field keys on board "${b.key}" must be unique`);
+    const columnNames = b.columns.map((col) => col.name.toLowerCase());
+    if (new Set(columnNames).size !== columnNames.length) throw badRequest(`Column names on board "${b.key}" must be unique`);
+  }
+  // Areas are looked up by name ignoring case, so "Web" and "web" would be ambiguous.
+  const areaNames = (input.areas ?? []).map((a) => a.name.toLowerCase());
+  if (new Set(areaNames).size !== areaNames.length) throw badRequest('Area names must be unique');
   const id = await tx(async (c) => {
     const exists = await one(`select 1 from projects where key = $1`, [input.key], c);
     if (exists) throw conflict(`Project key ${input.key} is already used`);
@@ -84,10 +100,12 @@ export async function createProject(ctx: Ctx, input: z.infer<typeof projectInput
     const owner = await one<{ id: string }>(`select id from roles where scope = 'project' and name = 'Owner'`, [], c);
     if (owner && ctx.via !== 'system') await c.query(`insert into project_members (project_id, user_id, role_id) values ($1, $2, $3)`, [p.id, ctx.user.id, owner.id]);
     await audit(ctx, { action: 'project.created', entityType: 'project', entityId: p.id, projectId: p.id, summary: `Created project ${input.key} "${input.name}"` }, c);
-    for (const b of opts.boards ?? [DEFAULT_BOARD]) await createBoard(ctx, p.id, b, c);
+    for (const b of boards) await createBoard(ctx, p.id, b, c);
+    for (const a of input.areas ?? []) await upsertArea(ctx, p.id, null, a, c);
     return p.id;
   });
   await syncProjectFolders();
+  publish({ projectId: id, type: 'project.updated', actor: ctx.user.name });
   return getProject(ctx, id);
 }
 
