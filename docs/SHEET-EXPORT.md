@@ -27,6 +27,9 @@ The server writes to Google as a *service account*, a robot Google identity. It'
    chmod 644 secrets/google-service-account.json
    ```
 
+   If `SECRETS_DIR` is set in `.env` (an absolute path, used when Slipway deploys the app),
+   put the file in that folder instead.
+
    `secrets/` is git-ignored. Treat the file like a password: anyone with it can edit every
    sheet shared with that account. If it leaks, delete the key in Google Cloud and make a new one.
 6. Set your time zone in `.env` (e.g. `TIMEZONE=America/Chicago`) and restart the API:
