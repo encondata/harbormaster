@@ -6,6 +6,8 @@ import { ApiError } from './api';
 import App from './App';
 import { ToastProvider } from './components/ui';
 import { AuthProvider } from './lib/auth';
+import '@fontsource-variable/inter';
+import '@fontsource/outfit/700.css';
 import './styles.css';
 
 // Light is the default; dark and "match system" are opt-in from the sidebar or Account page.
