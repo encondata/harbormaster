@@ -10,7 +10,7 @@ import { parse } from '../validate.js';
 import { issueToken, listTokens, revokeToken, tokenInput } from './auth.js';
 
 const USER_SELECT = `
-  select u.id, u.email, u.name, u.kind, u.is_active, u.must_change_password, u.last_login_at, u.created_at, u.updated_at, u.google_sub is not null as google_linked, u.avatar_updated_at, u.job_title,
+  select u.id, u.email, u.name, u.kind, u.is_active, u.must_change_password, u.last_login_at, u.created_at, u.updated_at, u.google_sub is not null as google_linked, u.hsl_sub is not null as hsl_linked, u.hsl_username, u.avatar_updated_at, u.job_title,
          coalesce((select json_agg(json_build_object('id', r.id, 'name', r.name) order by r.name) from user_roles ur join roles r on r.id = ur.role_id where ur.user_id = u.id), '[]') as global_roles,
          coalesce((select json_agg(json_build_object('project_id', p.id, 'project_key', p.key, 'project_name', p.name, 'role_id', r.id, 'role_name', r.name) order by p.name)
                      from project_members m join projects p on p.id = m.project_id join roles r on r.id = m.role_id where m.user_id = u.id), '[]') as projects,
@@ -43,6 +43,8 @@ const userPatch = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   is_active: z.boolean().optional(),
   global_role_ids: z.array(z.string().uuid()).optional(),
+  // HackSpaceLabs username to link on that person's first HSL sign-in; '' clears it.
+  hsl_username: z.string().trim().max(255).regex(/^[^\s]*$/, 'HackSpaceLabs usernames have no spaces').optional(),
 });
 
 async function roleNames(ids: string[], db: Db) {
@@ -215,6 +217,15 @@ export default async function adminRoutes(app: FastifyInstance) {
         const exists = await one(`select 1 from users where lower(email) = lower($1) and id <> $2`, [body.email, id], c);
         if (exists) throw conflict('A user with that email already exists');
       }
+      if (body.hsl_username !== undefined) {
+        const next = body.hsl_username || null;
+        if ((next ?? '').toLowerCase() !== (before.hsl_username ?? '').toLowerCase()) {
+          if (before.hsl_sub) throw badRequest('This user is already linked to a HackSpaceLabs account. Unlink it first.');
+          if (next && (await one(`select 1 from users where lower(hsl_username) = lower($1) and id <> $2`, [next, id], c))) throw conflict('Another user already has that HackSpaceLabs username');
+          await c.query(`update users set hsl_username = $2 where id = $1`, [id, next]);
+          changes.hsl_username = { from: before.hsl_username, to: next };
+        }
+      }
       for (const k of ['email', 'name', 'is_active'] as const) {
         if (body[k] !== undefined && body[k] !== before[k]) changes[k] = { from: before[k], to: body[k] };
       }
@@ -236,7 +247,7 @@ export default async function adminRoutes(app: FastifyInstance) {
       const wasAdmin = beforeRoles.length && (await one(`select 1 from roles where id = any($1) and 'admin.users' = any(permissions)`, [beforeRoles.map((r) => r.id)], c));
       if (wasAdmin && before.is_active && !stillAdmin && (await otherUserAdmins(id, c)) === 0) throw badRequest('That would leave nobody able to manage users');
       if (Object.keys(changes).length) {
-        const what = Object.entries(changes).map(([k, v]) => (k === 'is_active' ? (v.to ? 'reactivated' : 'deactivated') : k === 'global_roles' ? `roles now ${(v.to as string[]).join(', ') || 'none'}` : `${k} changed`));
+        const what = Object.entries(changes).map(([k, v]) => (k === 'is_active' ? (v.to ? 'reactivated' : 'deactivated') : k === 'hsl_username' ? (v.to ? `HackSpaceLabs username set to ${v.to}` : 'HackSpaceLabs username cleared') : k === 'global_roles' ? `roles now ${(v.to as string[]).join(', ') || 'none'}` : `${k} changed`));
         await audit(ctx, { action: 'user.updated', entityType: 'user', entityId: id, summary: `Updated ${before.name}: ${what.join('; ')}`, changes }, c);
       }
     });
@@ -268,6 +279,15 @@ export default async function adminRoutes(app: FastifyInstance) {
     const id = (req.params as any).id;
     const u = await one(`update users set google_sub = null where id = $1 and google_sub is not null returning name`, [id]);
     if (u) await audit(ctx, { action: 'user.google_unlinked', entityType: 'user', entityId: id, summary: `Unlinked ${u.name}'s Google account` });
+    return { ok: true };
+  });
+
+  app.post('/api/admin/users/:id/unlink-hsl', async (req) => {
+    const ctx = requireUser(req);
+    requireGlobal(ctx, 'admin.users');
+    const id = (req.params as any).id;
+    const u = await one(`update users set hsl_sub = null, hsl_username = null, updated_at = now() where id = $1 and hsl_sub is not null returning name`, [id]);
+    if (u) await audit(ctx, { action: 'user.hsl_unlinked', entityType: 'user', entityId: id, summary: `Unlinked ${u.name}'s HackSpaceLabs account` });
     return { ok: true };
   });
 

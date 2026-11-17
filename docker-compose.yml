@@ -43,6 +43,9 @@ services:
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
       GOOGLE_OAUTH_ALLOWED_DOMAINS: ${GOOGLE_OAUTH_ALLOWED_DOMAINS:-}
+      HSL_OIDC_ISSUER: ${HSL_OIDC_ISSUER:-}
+      HSL_OIDC_CLIENT_ID: ${HSL_OIDC_CLIENT_ID:-harbormaster}
+      HSL_OIDC_CLIENT_SECRET: ${HSL_OIDC_CLIENT_SECRET:-}
       GOOGLE_SERVICE_ACCOUNT_FILE: /app/secrets/google-service-account.json
     volumes:
       # Optional Google service account key for the daily sheet export (see docs/SHEET-EXPORT.md).
