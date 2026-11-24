@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { api, type Board, type Column, type FieldDef, type Project, type Role } from '../../api';
+import { useEffect, useRef, useState } from 'react';
+import { api, cardLogoUrl, type Board, type Column, type FieldDef, type Project, type Role } from '../../api';
 import { Avatar, Confirm, ErrorBox, Modal, useToast } from '../../components/ui';
 import { COLORS, colorVar, dateTime } from '../../lib/format';
 import { canDo } from '../../lib/project';
@@ -35,6 +35,92 @@ function General({ project }: { project: Project }) {
           <button className="btn primary" onClick={async () => { try { await api.patch(`/api/projects/${project.key}`, { name, description }); refresh(); toast('Saved'); } catch (e) { setErr(e); } }}>Save</button>
           <span className="grow" />
           <button className="btn" onClick={async () => { await api.patch(`/api/projects/${project.key}`, { archived: !project.archived_at }); refresh(); }}>{project.archived_at ? 'Unarchive project' : 'Archive project'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Logo({ project }: { project: Project }) {
+  const refresh = useRefresh(project);
+  const toast = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>(null);
+  const upload = async (f: File) => {
+    setErr(null);
+    if (f.size > 8 * 1024 * 1024) return setErr(new Error(`That image is ${(f.size / 1048576).toFixed(1)} MB. Choose one under 8 MB.`));
+    setBusy(true);
+    const fd = new FormData();
+    fd.append('file', f);
+    try {
+      await api.post(`/api/projects/${project.key}/logo`, fd);
+      refresh();
+      toast('Logo updated');
+    } catch (e) {
+      setErr(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="card-box">
+      <div className="hd"><h2>Card logo</h2></div>
+      <div className="bd logo-setting">
+        <div className="logo-preview" aria-label="How the logo looks on a printed card">
+          <img src={cardLogoUrl(project.key, project.logo_updated_at)} alt="" />
+        </div>
+        <div className="stack-sm">
+          <div>Printed faintly behind every printed card. {project.logo_updated_at ? 'This project uses its own logo.' : 'This project uses the default H logo.'}</div>
+          <div className="faint small">PNG with a transparent background works best. JPG, WebP, GIF, SVG and HEIC also work, up to 8 MB. Blank edges are trimmed.</div>
+          <div className="btn-row">
+            <button className="btn" disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? 'Uploading…' : project.logo_updated_at ? 'Replace logo' : 'Upload logo'}</button>
+            {project.logo_updated_at && (
+              <button className="btn ghost" disabled={busy} onClick={async () => {
+                setErr(null);
+                try { await api.del(`/api/projects/${project.key}/logo`); refresh(); toast('Back to the default logo'); } catch (e) { setErr(e); }
+              }}>Use default logo</button>
+            )}
+          </div>
+          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/heic,image/heif" hidden
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) upload(f); }} />
+          <ErrorBox error={err} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReceiptPrinter({ project }: { project: Project }) {
+  const refresh = useRefresh(project);
+  const toast = useToast();
+  const [host, setHost] = useState(project.receipt_printer_host ?? '');
+  const [port, setPort] = useState(String(project.receipt_printer_port ?? 9100));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>(null);
+  const saved = project.receipt_printer_host;
+  const dirty = host.trim() !== (saved ?? '') || Number(port) !== (project.receipt_printer_port ?? 9100);
+  const run = async (fn: () => Promise<unknown>, done: string) => {
+    setErr(null);
+    setBusy(true);
+    try { await fn(); refresh(); toast(done); } catch (e) { setErr(e); } finally { setBusy(false); }
+  };
+  return (
+    <div className="card-box">
+      <div className="hd"><h2>Receipt printer</h2></div>
+      <div className="bd form-grid">
+        <div className="faint small">An Epson (ESC/POS) receipt printer on your network with 80 mm paper. Cards print as tickets with a QR code and are cut one by one.</div>
+        <div className="form-grid two">
+          <label className="field">IP address<input className="input" placeholder="192.168.1.50" value={host} onChange={(e) => setHost(e.target.value)} /></label>
+          <label className="field">Port<input className="input" inputMode="numeric" value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, ''))} /></label>
+        </div>
+        <ErrorBox error={err} />
+        <div className="btn-row">
+          <button className="btn primary" disabled={busy || !host.trim() || !dirty}
+            onClick={() => run(() => api.put(`/api/projects/${project.key}/receipt-printer`, { host: host.trim(), port: Number(port) || 9100 }), 'Printer saved')}>Save</button>
+          {saved && !dirty && <button className="btn" disabled={busy} onClick={() => run(() => api.post(`/api/projects/${project.key}/receipt-printer/test`, {}), 'Test ticket sent')}>{busy ? 'Printing…' : 'Print a test ticket'}</button>}
+          <span className="grow" />
+          {saved && <button className="btn ghost" disabled={busy} onClick={() => run(async () => { await api.del(`/api/projects/${project.key}/receipt-printer`); setHost(''); setPort('9100'); }, 'Printer removed')}>Remove printer</button>}
         </div>
       </div>
     </div>
@@ -400,6 +486,8 @@ export default function Settings() {
     <div className="page page-narrow">
       <div className="stack">
         <General project={project} />
+        <Logo project={project} />
+        <ReceiptPrinter project={project} />
         <Members project={project} />
         <Boards project={project} />
         <Areas project={project} />

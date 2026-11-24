@@ -102,6 +102,7 @@ Check it with `claude mcp list`. In a session, `/mcp` shows the server and its t
 | Tool | What it does |
 |---|---|
 | `list_projects` | Projects the token can see. |
+| `create_project` | New project (needs **projects.create**); optional boards with columns and custom fields, and areas. Defaults to one Kanban board. |
 | `get_project` | Boards, column names, custom card fields and areas. Call this first. |
 | `get_summary` | Counts per area and status, parity %, recent activity, latest update. |
 | `list_cards` | Search and filter (board, column, area, priority, tag, text). |

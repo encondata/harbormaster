@@ -7,9 +7,12 @@ import AuditPage from './pages/admin/Audit';
 import RolesPage from './pages/admin/Roles';
 import UserDetail from './pages/admin/UserDetail';
 import UsersPage from './pages/admin/Users';
+import CardLink from './pages/CardLink';
 import ChangePassword from './pages/ChangePassword';
 import Login from './pages/Login';
 import OAuthConsent from './pages/OAuthConsent';
+import PrintCard from './pages/PrintCard';
+import PrintSheet from './pages/PrintSheet';
 import Activity from './pages/project/Activity';
 import BoardPage from './pages/project/Board';
 import ProjectLayout from './pages/project/ProjectLayout';
@@ -41,6 +44,10 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<AfterLogin />} />
       <Route path="/oauth/authorize" element={<OAuthConsent />} />
+      <Route path="/print/card/:key" element={<PrintCard />} />
+      <Route path="/print/p/:project/sheet" element={<PrintSheet />} />
+      <Route path="/print/p/:project/cards" element={<PrintSheet layout="cards" />} />
+      <Route path="/c/:token" element={<CardLink />} />
       <Route element={<Layout />}>
         <Route index element={<Projects />} />
         <Route path="account" element={<Account />} />

@@ -7,8 +7,9 @@ import { resolveProject } from '../services/common.js';
 import { fetchGoogleSheet, importWorkbook } from '../services/import-sheet.js';
 import {
   addBoard, addColumn, areaInput, boardInput, boardPatch, columnInput, createProject, deleteArea, deleteColumn, getProject, listMembers,
-  listProjectsFor, projectInput, projectPatch, projectSummary, setMember, updateBoard, updateColumn, updateProject, upsertArea,
+  listProjectsFor, MAX_LOGO_BYTES, projectInput, projectLogo, removeProjectLogo, setProjectLogo, projectPatch, projectSummary, setMember, updateBoard, updateColumn, updateProject, upsertArea,
 } from '../services/projects.js';
+import { MAX_TICKETS, printCardTickets, printTestTicket, setReceiptPrinter } from '../services/receipt.js';
 import { exportSettings, runExport, saveExportSettings } from '../services/sheet-export.js';
 import { deleteUpdate, listUpdates, saveUpdate, updateInput } from '../services/updates.js';
 import { parse } from '../validate.js';
@@ -24,6 +25,42 @@ export default async function projectRoutes(app: FastifyInstance) {
   app.get('/api/projects/:project', async (req) => getProject(requireUser(req), await pid(req)));
 
   app.patch('/api/projects/:project', async (req) => updateProject(requireUser(req), await pid(req), parse(projectPatch, req.body)));
+
+  // Project logo, printed faintly behind printed cards.
+  app.get('/api/projects/:project/logo', async (req, reply) => {
+    const data = await projectLogo(requireUser(req), await pid(req));
+    reply.header('content-type', 'image/png').header('cache-control', 'private, max-age=86400').header('x-content-type-options', 'nosniff');
+    return reply.send(data);
+  });
+
+  app.post('/api/projects/:project/logo', async (req) => {
+    const ctx = requireUser(req);
+    const projectId = await pid(req);
+    await requireProject(ctx, projectId, 'project.manage');
+    if (!req.isMultipart()) throw badRequest('Upload the logo as multipart/form-data');
+    const file = await req.file({ limits: { fileSize: MAX_LOGO_BYTES } });
+    if (!file) throw badRequest('No logo attached');
+    const data = await file.toBuffer();
+    if (file.file.truncated) throw badRequest('That logo is larger than 8 MB');
+    return setProjectLogo(ctx, projectId, data);
+  });
+
+  app.delete('/api/projects/:project/logo', async (req) => removeProjectLogo(requireUser(req), await pid(req)));
+
+  // Network receipt printer (Epson ESC/POS over raw TCP).
+  app.put('/api/projects/:project/receipt-printer', async (req) => {
+    const body = parse(z.object({ host: z.string().trim().min(1).max(64), port: z.number().int().default(9100) }), req.body);
+    return setReceiptPrinter(requireUser(req), await pid(req), body);
+  });
+
+  app.delete('/api/projects/:project/receipt-printer', async (req) => setReceiptPrinter(requireUser(req), await pid(req), null));
+
+  app.post('/api/projects/:project/receipt-printer/test', async (req) => printTestTicket(requireUser(req), await pid(req)));
+
+  app.post('/api/projects/:project/cards/receipt', async (req) => {
+    const body = parse(z.object({ keys: z.array(z.string().regex(/^[A-Za-z][A-Za-z0-9]*-\d+$/)).min(1).max(MAX_TICKETS) }), req.body);
+    return printCardTickets(requireUser(req), await pid(req), body.keys);
+  });
 
   app.get('/api/projects/:project/summary', async (req) => projectSummary(requireUser(req), await pid(req)));
 

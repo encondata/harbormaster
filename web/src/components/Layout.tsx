@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../lib/auth';
+import Mark from './Mark';
 import TopBar from './TopBar';
 import { Avatar } from './ui';
 
@@ -30,23 +31,11 @@ export function useTheme(): Theme {
   return theme;
 }
 
-/** Sidebar footer: your avatar and name; opens a menu with Profile, Settings and Sign out. */
-function AccountMenu({ name, email, userId, photoAt }: { name: string; email: string; userId: string; photoAt: string | null }) {
+/** Sidebar footer, as in Switchyard: your card (opens Profile), a light/dark switch and Sign out. */
+function SidebarFoot({ me }: { me: NonNullable<ReturnType<typeof useAuth>['me']> }) {
   const qc = useQueryClient();
-  const nav = useNavigate();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const items = useRef<(HTMLButtonElement | null)[]>([]);
-  useEffect(() => {
-    if (!open) return;
-    items.current[0]?.focus();
-    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); ref.current?.querySelector<HTMLButtonElement>('.account-btn')?.focus(); } };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
-  }, [open]);
-  const go = (path: string) => { setOpen(false); nav(path); };
+  const theme = useTheme();
+  const dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const signOut = async () => {
     await api.post('/api/auth/logout').catch(() => {});
     // A full page load drops cached data, in-flight requests and the live-update
@@ -54,33 +43,27 @@ function AccountMenu({ name, email, userId, photoAt }: { name: string; email: st
     qc.clear();
     window.location.replace('/login');
   };
-  const onMenuKey = (e: React.KeyboardEvent) => {
-    const list = items.current.filter(Boolean) as HTMLButtonElement[];
-    const i = list.indexOf(document.activeElement as HTMLButtonElement);
-    if (e.key === 'ArrowDown') { e.preventDefault(); list[(i + 1) % list.length]?.focus(); }
-    if (e.key === 'ArrowUp') { e.preventDefault(); list[(i - 1 + list.length) % list.length]?.focus(); }
-  };
-  const entries: [string, () => void][] = [['Profile', () => go('/account')], ['Settings', () => go('/account?tab=preferences')], ['Sign out', signOut]];
+  const role = me.global_roles.map((r) => r.name).join(', ') || 'Member';
   return (
-    <div className="account" ref={ref}>
-      {open && (
-        <div className="account-menu" role="menu" aria-label="Account" onKeyDown={onMenuKey}>
-          <div className="account-menu-hd"><div className="account-name">{name}</div><div className="faint small account-email">{email}</div></div>
-          {entries.map(([label, fn], i) => (
-            <button key={label} ref={(el) => { items.current[i] = el; }} role="menuitem" className={label === 'Sign out' ? 'danger' : ''} onClick={fn}>{label}</button>
-          ))}
-        </div>
-      )}
-      <button className="account-btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)} title={`${name} (${email})`}>
-        <Avatar name={name} userId={userId} photoAt={photoAt} />
-        <span className="account-name">{name}</span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 15l5-5 5 5" /></svg>
+    <div className="sidebar-foot">
+      <NavLink to="/account" end className="user-card" title={`${me.name} (${me.email}): profile, tokens and settings`}>
+        <Avatar name={me.name} userId={me.id} photoAt={me.avatar_updated_at} size={34} />
+        <span className="user-text">
+          <span className="user-name">{me.name}</span>
+          <span className="user-role">{role}</span>
+        </span>
+      </NavLink>
+      <button type="button" className="nav-item" onClick={() => applyTheme(dark ? 'light' : 'dark')} title={dark ? 'Light mode' : 'Dark mode'}>
+        {dark ? NavIcons.sun : NavIcons.moon}<span className="nav-text">{dark ? 'Light mode' : 'Dark mode'}</span>
+      </button>
+      <button type="button" className="nav-item" onClick={signOut} title="Sign out">
+        {NavIcons.signOut}<span className="nav-text">Sign out</span>
       </button>
     </div>
   );
 }
 
-const NI = { width: 17, height: 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true, className: 'nav-icon' };
+const NI = { width: 19, height: 19, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true, className: 'nav-icon' };
 const NavIcons = {
   projects: <svg {...NI}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>,
   wiki: <svg {...NI}><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z" /><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5" /><path d="M8 7h8M8 11h6" /></svg>,
@@ -90,6 +73,9 @@ const NavIcons = {
   audit: <svg {...NI}><path d="M8 6h13M8 12h13M8 18h13" /><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01" /></svg>,
   collapse: <svg {...NI}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M16 10l-2 2 2 2" /></svg>,
   expand: <svg {...NI}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M14 10l2 2-2 2" /></svg>,
+  moon: <svg {...NI}><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg>,
+  sun: <svg {...NI}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>,
+  signOut: <svg {...NI}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></svg>,
 };
 
 const COLLAPSE_KEY = 'hsl-sidebar-collapsed';
@@ -119,33 +105,38 @@ export default function Layout() {
       {open && <div className="scrim" style={{ zIndex: 39 }} onClick={() => setOpen(false)} />}
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="brand">
-          <span className="logo" aria-hidden="true" /> <span className="brand-name">Harbor Master</span>
+          <NavLink to="/" className="brand-link" aria-label="Harbor Master home"><Mark /><span className="brand-name">Harbor Master</span></NavLink>
           <button type="button" className="rail-toggle" onClick={() => setCollapsed((c) => !c)} aria-label={toggleLabel} title={toggleLabel} aria-expanded={!collapsed}>
             {collapsed ? NavIcons.expand : NavIcons.collapse}
           </button>
         </div>
-        <nav className="nav">
-          <NavLink to="/" end title="All projects">{NavIcons.projects}<span className="nav-text">All projects</span></NavLink>
-          <NavLink to="/wiki" title="Wiki">{NavIcons.wiki}<span className="nav-text">Wiki</span></NavLink>
-          <NavLink to="/skills" title="Skills">{NavIcons.skills}<span className="nav-text">Skills</span></NavLink>
-          <div className="nav-label">Projects</div>
-          {projects.map((p) => (
-            <div key={p.id}>
-              <NavLink to={`/p/${p.key}`} end title={`${p.name} (${p.key})`}>
+        <nav className="nav" aria-label="Main">
+          <div className="nav-group">
+            <div className="nav-label">Workspace</div>
+            <NavLink to="/" end title="All projects">{NavIcons.projects}<span className="nav-text">All projects</span></NavLink>
+            <NavLink to="/wiki" title="Wiki">{NavIcons.wiki}<span className="nav-text">Wiki</span></NavLink>
+            <NavLink to="/skills" title="Skills">{NavIcons.skills}<span className="nav-text">Skills</span></NavLink>
+          </div>
+          <div className="nav-group">
+            <div className="nav-label">Projects</div>
+            {projects.map((p) => (
+              <NavLink key={p.id} to={`/p/${p.key}`} title={`${p.name} (${p.key})`}>
                 <span className="nav-chip" aria-hidden="true">{p.key.slice(0, 2)}</span>
                 <span className="nav-text">{p.name}</span><span className="key">{p.key}</span>
               </NavLink>
+            ))}
+            {!projects.length && <div className="faint small nav-empty">No projects yet</div>}
+          </div>
+          {anyAdmin && (
+            <div className="nav-group">
+              <div className="nav-label">Administration</div>
+              {can('admin.users') && <NavLink to="/admin/users" title="Users">{NavIcons.users}<span className="nav-text">Users</span></NavLink>}
+              {can('admin.roles') && <NavLink to="/admin/roles" title="Roles & permissions">{NavIcons.roles}<span className="nav-text">Roles &amp; permissions</span></NavLink>}
+              {can('admin.audit') && <NavLink to="/admin/audit" title="Audit log">{NavIcons.audit}<span className="nav-text">Audit log</span></NavLink>}
             </div>
-          ))}
-          {!projects.length && <div className="faint small nav-empty" style={{ padding: '4px 8px' }}>No projects yet</div>}
-          {anyAdmin && <div className="nav-label">Administration</div>}
-          {can('admin.users') && <NavLink to="/admin/users" title="Users">{NavIcons.users}<span className="nav-text">Users</span></NavLink>}
-          {can('admin.roles') && <NavLink to="/admin/roles" title="Roles & permissions">{NavIcons.roles}<span className="nav-text">Roles &amp; permissions</span></NavLink>}
-          {can('admin.audit') && <NavLink to="/admin/audit" title="Audit log">{NavIcons.audit}<span className="nav-text">Audit log</span></NavLink>}
+          )}
         </nav>
-        <div className="sidebar-foot">
-          <AccountMenu name={me.name} email={me.email} userId={me.id} photoAt={me.avatar_updated_at} />
-        </div>
+        <SidebarFoot me={me} />
       </aside>
       <main className="main">
         <TopBar me={me} onMenu={() => setOpen(true)} />

@@ -5,9 +5,9 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { api, PRIORITIES, qs, type Board, type Card, type Column } from '../../api';
+import { api, printReceipts, PRIORITIES, qs, type Board, type Card, type Column } from '../../api';
 import { ErrorBox, Spinner, useToast } from '../../components/ui';
 import { colorVar, timeAgo } from '../../lib/format';
 import { canDo } from '../../lib/project';
@@ -54,11 +54,69 @@ function CardTile({ card, recent, onOpen, overlay, draggable }: { card: Card; re
   );
 }
 
+function PrinterIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 9V3h12v6" /><rect x="3" y="9" width="18" height="8" rx="2" /><path d="M6 14h12v7H6z" />
+    </svg>
+  );
+}
+
+/** Column header print button: a small menu to print the column's cards on letter sheets or on 3×5 cards. */
+function PrintMenu({ projectKey, title, cards }: { projectKey: string; title: string; cards: Card[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    ref.current?.querySelector<HTMLAnchorElement>('[role="menuitem"]')?.focus();
+    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setOpen(false); ref.current?.querySelector<HTMLButtonElement>('button')?.focus(); }
+      const items = [...(ref.current?.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]') ?? [])];
+      const i = items.indexOf(document.activeElement as HTMLAnchorElement);
+      if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length]?.focus(); }
+      if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus(); }
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  const n = Math.min(cards.length, 300);
+  const href = (layout: 'sheet' | 'cards') =>
+    `/print/p/${encodeURIComponent(projectKey)}/${layout}?${new URLSearchParams({ keys: cards.slice(0, 300).map((c) => c.key).join(','), title, autoprint: '1' })}`;
+  const pages = Math.ceil(n / 6);
+  return (
+    <div className="print-menu" ref={ref}>
+      <button className="btn ghost sm icon" title={`Print ${n === 1 ? 'this card' : `these ${n} cards`}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <PrinterIcon />
+      </button>
+      {open && (
+        <div className="print-menu-list" role="menu" aria-label="Print">
+          <a role="menuitem" href={href('sheet')} target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
+            Letter sheets<span className="faint small">6 per page · {pages === 1 ? '1 page' : `${pages} pages`}</span>
+          </a>
+          <a role="menuitem" href={href('cards')} target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
+            3×5 index cards<span className="faint small">1 per card · {n === 1 ? '1 card' : `${n} cards`}</span>
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReceiptIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 2h14v20l-3-2-2 2-2-2-2 2-2-2-3 2z" /><path d="M9 7h6M9 11h6M9 15h4" />
+    </svg>
+  );
+}
+
 function ColumnView({
-  col, cards, laneId, collapsed, onToggle, recent, openCard, canMove, canCreate, onQuickAdd,
+  col, cards, laneId, collapsed, onToggle, recent, openCard, canMove, canCreate, onQuickAdd, projectKey, onReceipt,
 }: {
   col: Column; cards: Card[]; laneId: string; collapsed: boolean; onToggle: () => void; recent: Record<string, number>;
-  openCard: (c: Card) => void; canMove: boolean; canCreate: boolean; onQuickAdd: (title: string) => Promise<void>;
+  openCard: (c: Card) => void; canMove: boolean; canCreate: boolean; onQuickAdd: (title: string) => Promise<void>; projectKey: string; onReceipt?: (cards: Card[]) => void;
 }) {
   const drop = useDroppable({ id: `col:${col.id}:${laneId}`, data: { columnId: col.id, laneId } });
   const [limit, setLimit] = useState(PAGE);
@@ -80,6 +138,14 @@ function ColumnView({
         <span>{col.name}</span>
         <span className={`count ${over ? 'wip-over' : ''}`}>{cards.length}{col.wip_limit ? ` / ${col.wip_limit}` : ''}</span>
         <div className="col-actions">
+          {cards.length > 0 && (
+            <PrintMenu projectKey={projectKey} title={col.name} cards={cards} />
+          )}
+          {onReceipt && cards.length > 0 && (
+            <button className="btn ghost sm icon" title={`Print ${cards.length === 1 ? 'this card' : `these ${Math.min(cards.length, 50)} cards`} on the receipt printer`} onClick={() => onReceipt(cards)}>
+              <ReceiptIcon />
+            </button>
+          )}
           {canCreate && <button className="btn ghost sm icon" title="Add card" onClick={() => setAdding(true)}>＋</button>}
           <button className="btn ghost sm icon" title="Collapse column" onClick={onToggle}>‹</button>
         </div>
@@ -171,6 +237,11 @@ export default function BoardPage() {
   const [sp, setSp] = useSearchParams();
   const qc = useQueryClient();
   const toast = useToast();
+  const onReceipt = project.receipt_printer_host ? async (list: Card[]) => {
+    const keys = list.slice(0, 50).map((c) => c.key);
+    if (keys.length > 3 && !window.confirm(`Print ${keys.length} tickets on the receipt printer?${list.length > 50 ? ' (The first 50 cards of this column.)' : ''}`)) return;
+    try { toast(await printReceipts(project.key, keys)); } catch (e) { toast(e instanceof Error ? e.message : 'Printing failed', 'error'); }
+  } : undefined;
   const board = project.boards.find((b) => b.key === boardKey);
   const archived = sp.get('archived') === '1';
   const queryKey = ['cards', project.key, boardKey, archived];
@@ -355,7 +426,7 @@ export default function BoardPage() {
                   <div className="board">
                     {board.columns.map((col) => (
                       <ColumnView key={col.id} col={col} cards={inLane(lane.id, col.id)} laneId={lane.id} collapsed={collapsed.has(col.id)} onToggle={() => toggle(col.id)}
-                        recent={recent} openCard={openCard} canMove={canMove} canCreate={canCreate} onQuickAdd={quickAdd(col.id, lane.id)} />
+                        recent={recent} openCard={openCard} canMove={canMove} canCreate={canCreate} onQuickAdd={quickAdd(col.id, lane.id)} projectKey={project.key} onReceipt={onReceipt} />
                     ))}
                   </div>
                 </div>
@@ -366,7 +437,7 @@ export default function BoardPage() {
             <div className="board">
               {board.columns.map((col) => (
                 <ColumnView key={col.id} col={col} cards={inLane('all', col.id)} laneId="all" collapsed={collapsed.has(col.id)} onToggle={() => toggle(col.id)}
-                  recent={recent} openCard={openCard} canMove={canMove} canCreate={canCreate} onQuickAdd={quickAdd(col.id, 'all')} />
+                  recent={recent} openCard={openCard} canMove={canMove} canCreate={canCreate} onQuickAdd={quickAdd(col.id, 'all')} projectKey={project.key} onReceipt={onReceipt} />
               ))}
             </div>
           )}

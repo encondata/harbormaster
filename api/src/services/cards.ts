@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { audit, diff } from '../audit.js';
 import { requireProject, type Ctx } from '../auth.js';
@@ -12,7 +13,7 @@ const CARD_SELECT = `
   select c.id, p.key || '-' || c.number as key, c.number, c.project_id, c.board_id, c.column_id, col.name as column_name,
          c.title, c.description, c.area_id, a.name as area_name, c.priority, c.assignee_id, au.name as assignee_name,
          c.tags, c.fields, c.estimate, c.due_date, c.sort, c.external_key, c.created_at, c.updated_at, c.archived_at,
-         cu.name as created_by_name, uu.name as updated_by_name,
+         cu.name as created_by_name, uu.name as updated_by_name, p.logo_updated_at as project_logo_at,
          (select count(*) from card_comments cc where cc.card_id = c.id and cc.deleted_at is null) as comment_count,
          (select count(*) from attachments at where at.card_id = c.id) as attachment_count
     from cards c
@@ -29,6 +30,7 @@ export type Card = {
   assignee_id: string | null; assignee_name: string | null; tags: string[]; fields: Record<string, unknown>;
   estimate: string; due_date: string | null; sort: number; external_key: string | null; created_at: string; updated_at: string;
   archived_at: string | null; created_by_name: string | null; updated_by_name: string | null; comment_count: number; attachment_count: number;
+  project_logo_at: string | null;
 };
 
 export async function loadCard(id: string, db?: Db): Promise<Card> {
@@ -302,4 +304,44 @@ export async function cardHistory(cardId: string, limit = 100) {
     `select id, at, actor_name, via, action, summary, changes from audit_log where entity_type = 'card' and entity_id = $1 order by at desc, id desc limit $2`,
     [cardId, limit],
   );
+}
+
+// ----- printed-card links -----
+
+/** Token for the card's QR link (/c/<token>), created on first use. Reveals nothing about the card on its own. */
+export async function cardLinkToken(cardId: string): Promise<string> {
+  for (let i = 0; i < 3; i++) {
+    const row = await one<{ link_token: string }>(
+      `update cards set link_token = coalesce(link_token, $2) where id = $1 returning link_token`,
+      [cardId, randomBytes(12).toString('base64url')],
+    ).catch((e) => (e?.code === '23505' ? undefined : Promise.reject(e)));
+    if (row) return row.link_token;
+  }
+  throw new Error('Could not create a card link');
+}
+
+/** Where a card link points, for a signed-in user who can see the card. Anyone else gets "not found". */
+export async function resolveCardLink(ctx: Ctx, token: string) {
+  const row = /^[A-Za-z0-9_-]{8,64}$/.test(token)
+    ? await one<{ id: string; project_id: string; project_key: string; board_key: string; key: string }>(
+      `select c.id, c.project_id, p.key as project_key, b.key as board_key, p.key || '-' || c.number as key
+         from cards c join projects p on p.id = c.project_id join boards b on b.id = c.board_id where c.link_token = $1`,
+      [token],
+    )
+    : undefined;
+  if (!row) throw notFound('Card not found');
+  await requireProject(ctx, row.project_id, 'project.view');
+  return { key: row.key, project_key: row.project_key, board_key: row.board_key };
+}
+
+/** Cards to print, in the order asked, each with its QR link token. Keys from other projects are ignored. */
+export async function cardsForPrint(projectId: string, keys: string[]) {
+  const numbers = [...new Set(keys.map((k) => /-(\d+)$/.exec(k.trim())?.[1]).filter(Boolean).map(Number))];
+  if (!numbers.length) return [];
+  const cards = await q<Card>(`${CARD_SELECT} where c.project_id = $1 and c.number = any($2::int[])`, [projectId, numbers]);
+  const byNumber = new Map(cards.map((c) => [c.number, c]));
+  const ordered = numbers.map((n) => byNumber.get(n)).filter((c): c is Card => !!c);
+  const out: (Card & { link_token: string })[] = [];
+  for (const c of ordered) out.push({ ...c, link_token: await cardLinkToken(c.id) });
+  return out;
 }

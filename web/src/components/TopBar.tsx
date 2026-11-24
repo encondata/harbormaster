@@ -288,7 +288,7 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
           <h3>Where things are</h3>
           <div><b>Projects</b> have a Summary, one tab per board, Requests, Updates and Activity. Owners also see Settings.</div>
           <div><b>Cards</b> open in a side panel with comments, attachments and their full history. Drag them between columns to change status.</div>
-          <div><b>Your name</b> at the bottom of the sidebar opens Profile (password, API tokens), Settings (light or dark) and Sign out.</div>
+          <div><b>Your name</b> at the bottom of the sidebar opens your profile (password, API tokens, settings). Below it are the light/dark switch and Sign out.</div>
           <div className="faint">Forgot your password? An administrator can reset it under Users.</div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { ErrorBox } from '../components/ui';
 import { useAuth } from '../lib/auth';
+import Mark from '../components/Mark';
 
 type Info = { client: { name: string; uri: string | null; redirect_host: string }; already_connected: boolean };
 
@@ -42,7 +43,7 @@ export default function OAuthConsent() {
     <div className="login-wrap">
       <div className="login card-box">
         <div className="bd stack">
-          <div className="brand"><span className="logo" aria-hidden="true" /> Harbor Master</div>
+          <div className="brand"><Mark className="logo" /> Harbor Master</div>
           {info.isLoading && <div className="faint">Checking the request…</div>}
           {info.error && (
             <>
