@@ -32,10 +32,11 @@ made it and how.
   Re-running only changes what changed in the sheet.
 - **Daily Google Sheet export**: each project can copy its summary, boards, weekly updates and
   requests into a Google Sheet every day. Setup: [docs/SHEET-EXPORT.md](docs/SHEET-EXPORT.md).
-- **Sign-in** with a password, **HackSpaceLabs** (the HSL Keycloak; new people get an account
-  with no access until an admin adds them; see [docs/HSL-SIGN-IN.md](docs/HSL-SIGN-IN.md)) or
-  **Google** (for existing accounts only; see [docs/GOOGLE-SIGN-IN.md](docs/GOOGLE-SIGN-IN.md)),
-  with "remember me".
+- **Sign-in** with a password, **HackSpaceLabs** (single sign-on with the other HackSpaceLabs apps
+  through the HSL Keycloak, for people with a Harbor Master role there; see
+  [docs/HSL-SIGN-IN.md](docs/HSL-SIGN-IN.md)) or **Google** (for existing accounts only; see
+  [docs/GOOGLE-SIGN-IN.md](docs/GOOGLE-SIGN-IN.md)). Password and Google sessions last 96 hours, or
+  30 days with "remember me".
 - **Users and permissions**: user admin, global roles (Administrator, Project Creator,
   Auditor), per-project roles (Owner, Editor, Contributor, Viewer), custom roles with any
   mix of permissions, service accounts, API tokens, forced password changes, session
