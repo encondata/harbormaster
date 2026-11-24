@@ -8,7 +8,7 @@ import { createSession, randomToken, setSessionCookie, sha256, type Ctx } from '
 import { config } from '../config.js';
 import { one, q } from '../db.js';
 import { safeNext, verifyOidcIdToken, type IdClaims } from '../oidc.js';
-import { hslEnabled } from './hsl-auth.js';
+import { hslEnabled } from '../hsl.js';
 
 export const googleEnabled = () => !!(config.google.clientId && config.google.clientSecret);
 const redirectUri = () => `${config.publicUrl}/api/auth/google/callback`;
@@ -23,7 +23,15 @@ function fail(reply: FastifyReply, code: string, extra: Record<string, string> =
 }
 
 export default async function googleAuthRoutes(app: FastifyInstance) {
-  app.get('/api/auth/providers', async () => ({ google: googleEnabled(), hsl: hslEnabled() }));
+  // What the sign-in page needs (no secrets). hsl and auto_redirect: Sign in with HackSpaceLabs;
+  // portal_url and apps: the HackSpaceLabs portal and app switcher.
+  app.get('/api/auth/providers', async () => ({
+    google: googleEnabled(),
+    hsl: hslEnabled(),
+    auto_redirect: hslEnabled() && config.hsl.autoRedirect,
+    portal_url: config.hsl.portalUrl,
+    apps: config.hsl.apps,
+  }));
 
   app.get('/api/auth/google/start', { config: { rateLimit: { max: 30, timeWindow: '5 minutes' } } }, async (req, reply) => {
     if (!googleEnabled()) return fail(reply, 'google_off');
@@ -92,9 +100,10 @@ export default async function googleAuthRoutes(app: FastifyInstance) {
       return fail(reply, 'google_domain', { email });
     }
 
+    type Row = { id: string; name: string; is_active: boolean; kind: string; google_sub: string | null; hsl_sub: string | null };
     const user =
-      (await one<{ id: string; name: string; is_active: boolean; kind: string; google_sub: string | null }>(`select id, name, is_active, kind, google_sub from users where google_sub = $1`, [claims.sub])) ??
-      (await one<{ id: string; name: string; is_active: boolean; kind: string; google_sub: string | null }>(`select id, name, is_active, kind, google_sub from users where lower(email) = $1`, [email]));
+      (await one<Row>(`select id, name, is_active, kind, google_sub, hsl_sub from users where google_sub = $1`, [claims.sub])) ??
+      (await one<Row>(`select id, name, is_active, kind, google_sub, hsl_sub from users where lower(email) = $1`, [email]));
     if (!user || user.kind !== 'human') {
       await audit(ctxFor(email, null), { action: 'auth.login_failed', entityType: 'user', summary: `Google sign-in refused for ${email}: no account` });
       return fail(reply, 'google_no_account', { email });
@@ -102,6 +111,11 @@ export default async function googleAuthRoutes(app: FastifyInstance) {
     if (!user.is_active) {
       await audit(ctxFor(user.name, user.id), { action: 'auth.login_failed', entityType: 'user', entityId: user.id, summary: `Google sign-in refused for ${user.name}: account deactivated` });
       return fail(reply, 'google_disabled');
+    }
+    // An account tied to HackSpaceLabs signs in only that way (D16).
+    if (user.hsl_sub) {
+      await audit(ctxFor(user.name, user.id), { action: 'auth.login_failed', entityType: 'user', entityId: user.id, summary: `Google sign-in refused for ${user.name}: the account signs in with HackSpaceLabs` });
+      return fail(reply, 'google_hsl');
     }
     if (user.google_sub && user.google_sub !== claims.sub) {
       await audit(ctxFor(user.name, user.id), { action: 'auth.login_failed', entityType: 'user', entityId: user.id, summary: `Google sign-in refused for ${user.name}: a different Google account is linked` });
@@ -114,7 +128,7 @@ export default async function googleAuthRoutes(app: FastifyInstance) {
     const s = await createSession(user.id, req.ip, req.headers['user-agent'] ?? null, st.remember);
     await q(`update users set last_login_at = now() where id = $1`, [user.id]);
     await audit(ctxFor(user.name, user.id), { action: 'auth.login', entityType: 'user', entityId: user.id, summary: `${user.name} signed in with Google` });
-    setSessionCookie(reply, s.token, s.expires, s.remember);
+    setSessionCookie(reply, s.token, s.expires);
     return reply.redirect(st.next_path);
   });
 }

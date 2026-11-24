@@ -6,6 +6,7 @@ import { one, q, tx, type Db } from '../db.js';
 import { badRequest, conflict, forbidden, notFound } from '../errors.js';
 import { GLOBAL_PERMISSIONS, isKnownPermission, PROJECT_PERMISSIONS } from '../permissions.js';
 import { setMember } from '../services/projects.js';
+import { ownerCheck } from '../hsl.js';
 import { parse } from '../validate.js';
 import { issueToken, listTokens, revokeToken, tokenInput } from './auth.js';
 
@@ -286,7 +287,9 @@ export default async function adminRoutes(app: FastifyInstance) {
     const ctx = requireUser(req);
     requireGlobal(ctx, 'admin.users');
     const id = (req.params as any).id;
+    const before = await one<{ hsl_sub: string | null }>(`select hsl_sub from users where id = $1`, [id]);
     const u = await one(`update users set hsl_sub = null, hsl_username = null, updated_at = now() where id = $1 and hsl_sub is not null returning name`, [id]);
+    if (before?.hsl_sub) ownerCheck?.forget(before.hsl_sub);
     if (u) await audit(ctx, { action: 'user.hsl_unlinked', entityType: 'user', entityId: id, summary: `Unlinked ${u.name}'s HackSpaceLabs account` });
     return { ok: true };
   });

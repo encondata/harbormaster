@@ -6,7 +6,8 @@ import {
   type Ctx,
 } from '../auth.js';
 import { one, q } from '../db.js';
-import { badRequest, notFound, unauthorized } from '../errors.js';
+import { endSessionRedirect } from '../hsl.js';
+import { badRequest, HttpError, notFound, unauthorized } from '../errors.js';
 import { listProjectsFor } from '../services/projects.js';
 import { parse } from '../validate.js';
 
@@ -17,7 +18,11 @@ const getDummyHash = () => (dummyHash ??= hashPassword(randomToken()));
 export async function meView(ctx: Ctx) {
   const u = await one(`select id, email, name, kind, must_change_password, last_login_at, created_at, avatar_updated_at from users where id = $1`, [ctx.user.id]);
   const roles = await q(`select r.id, r.name from user_roles ur join roles r on r.id = ur.role_id where ur.user_id = $1 order by r.name`, [ctx.user.id]);
-  return { ...u, global_roles: roles, global_permissions: [...ctx.global], projects: await listProjectsFor(ctx) };
+  // A HackSpaceLabs session never gets the local forced steps (ctx carries that rule).
+  return {
+    ...u, must_change_password: ctx.user.must_change_password, auth_source: ctx.authSource ?? (ctx.tokenId ? 'token' : 'local'),
+    global_roles: roles, global_permissions: [...ctx.global], projects: await listProjectsFor(ctx),
+  };
 }
 
 export const tokenInput = z.object({
@@ -53,8 +58,8 @@ export async function revokeToken(ctx: Ctx, userId: string, tokenId: string) {
 export default async function authRoutes(app: FastifyInstance) {
   app.post('/api/auth/login', { config: { rateLimit: { max: 10, timeWindow: '5 minutes' } } }, async (req, reply) => {
     const body = parse(z.object({ email: z.string().trim().min(1).max(200), password: z.string().min(1).max(200), remember: z.boolean().default(true) }), req.body);
-    const u = await one<{ id: string; name: string; password_hash: string | null; is_active: boolean; kind: string }>(
-      `select id, name, password_hash, is_active, kind from users where lower(email) = lower($1)`,
+    const u = await one<{ id: string; name: string; password_hash: string | null; is_active: boolean; kind: string; hsl_sub: string | null }>(
+      `select id, name, password_hash, is_active, kind, hsl_sub from users where lower(email) = lower($1)`,
       [body.email],
     );
     const ok = await verifyPassword(u?.password_hash ?? (await getDummyHash()), body.password);
@@ -69,21 +74,31 @@ export default async function authRoutes(app: FastifyInstance) {
       });
       throw unauthorized('Email or password is incorrect');
     }
+    // An account tied to HackSpaceLabs signs in only that way (D16), or disabling someone there would not
+    // lock them out. Said only now, after the password proved correct, so the form reveals nothing more.
+    if (u.hsl_sub) {
+      await audit(sysCtx(u.name, u.id), { action: 'auth.login_failed', entityType: 'user', entityId: u.id, summary: `Password sign-in refused for ${u.name}: the account signs in with HackSpaceLabs` });
+      throw new HttpError(401, 'This account signs in with HackSpaceLabs', 'hsl_only');
+    }
     const s = await createSession(u.id, req.ip, req.headers['user-agent'] ?? null, body.remember);
     await q(`update users set last_login_at = now() where id = $1`, [u.id]);
     await audit(sysCtx(u.name, u.id), { action: 'auth.login', entityType: 'user', entityId: u.id, summary: `${u.name} signed in with a password` });
-    setSessionCookie(reply, s.token, s.expires, s.remember);
+    setSessionCookie(reply, s.token, s.expires);
     return { ok: true };
   });
 
+  // A local session answers {ok: true} as before. A HackSpaceLabs session also answers with Keycloak's
+  // sign-out address for the browser to open, which signs the person out of every HackSpaceLabs app.
   app.post('/api/auth/logout', async (req, reply) => {
     const ctx = req.ctx;
+    let redirect: string | null = null;
     if (ctx?.sessionId) {
-      await q(`delete from sessions where id = $1`, [ctx.sessionId]);
+      const s = await one<{ auth_source: string; idp_tokens: string | null }>(`delete from sessions where id = $1 returning auth_source, idp_tokens`, [ctx.sessionId]);
       await audit(ctx, { action: 'auth.logout', entityType: 'user', entityId: ctx.user.id, summary: `${ctx.user.name} signed out` });
+      if (s?.auth_source === 'oidc') redirect = await endSessionRedirect(s.idp_tokens);
     }
     clearSessionCookie(reply);
-    return { ok: true };
+    return redirect ? { ok: true, redirect } : { ok: true };
   });
 
   app.get('/api/auth/me', async (req) => meView(requireUser(req)));

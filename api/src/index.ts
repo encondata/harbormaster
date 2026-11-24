@@ -8,6 +8,7 @@ import { bootstrap } from './bootstrap.js';
 import { config } from './config.js';
 import { migrate, one, pool } from './db.js';
 import { HttpError } from './errors.js';
+import { startHsl } from './hsl.js';
 import mcpRoutes from './mcp.js';
 import adminRoutes from './routes/admin.js';
 import authRoutes from './routes/auth.js';
@@ -60,9 +61,9 @@ app.decorateRequest('ctx', null);
 // OAuth client endpoints authenticate the client themselves, never a user session.
 const OAUTH_CLIENT_PATHS = ['/api/oauth/token', '/api/oauth/register', '/api/oauth/revoke'];
 
-app.addHook('onRequest', async (req) => {
+app.addHook('onRequest', async (req, reply) => {
   if (req.url.startsWith('/api/mcp') || req.url === '/api/health' || OAUTH_CLIENT_PATHS.includes(req.url.split('?')[0])) return;
-  if (req.url.startsWith('/api/')) await authenticate(req);
+  if (req.url.startsWith('/api/')) await authenticate(req, 'web', reply);
 });
 
 // Accounts flagged for a password change can only reach what they need to change it.
@@ -103,6 +104,7 @@ await app.register(oauthRoutes);
 await app.register(mcpRoutes);
 
 const log = (m: string) => app.log.info(m);
+startHsl(app.log);
 await migrate(log);
 await ensureBucket(log);
 await bootstrap(log);
