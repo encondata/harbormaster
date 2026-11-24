@@ -1,8 +1,9 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import Mark from '../components/Mark';
+import { hslStart, safeNext, useProviders } from '../lib/sso';
 
 const ICON = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
 
@@ -16,23 +17,23 @@ const GOOGLE_ERRORS: Record<string, (email: string) => string> = {
   google_no_account: (e) => `No Harbor Master account uses ${e || 'that email'}. Ask an administrator to add you, then try again.`,
   google_disabled: () => 'Your account is deactivated. Ask an administrator to reactivate it.',
   google_mismatch: () => 'Your account is linked to a different Google account. Ask an administrator to unlink it.',
+  google_hsl: () => 'This account signs in with HackSpaceLabs.',
   hsl_off: () => "HackSpaceLabs sign-in isn't set up on this server yet.",
   hsl_cancelled: () => 'HackSpaceLabs sign-in was cancelled.',
-  hsl_failed: () => "HackSpaceLabs sign-in didn't complete. Please try again.",
-  hsl_expired: () => 'That sign-in attempt timed out. Please try again.',
+  hsl_failed: () => "HackSpaceLabs sign-in didn't complete. Please try again, or ask an administrator.",
+  hsl_expired: () => 'That sign-in attempt took too long or was already used. Please try again.',
+  hsl_unavailable: () => "HackSpaceLabs sign-in can't be reached right now. Try again shortly; administrators can use a local account below.",
+  hsl_no_access: () => "Your HackSpaceLabs account doesn't have access to Harbor Master. Ask an administrator.",
+  hsl_account_exists: () => 'A Harbor Master account already uses the address made for your HackSpaceLabs username. Ask an administrator to link it or remove it.',
+  hsl_last_admin: () => "This is the last administrator who can sign in with a password, so it can't be linked to HackSpaceLabs. Ask another administrator to set one up first.",
   hsl_email_taken: () => 'A Harbor Master account already uses your HackSpaceLabs email. Sign in with your password or Google, then link HackSpaceLabs from your Account page.',
   hsl_disabled: () => 'Your account is deactivated. Ask an administrator to reactivate it.',
   hsl_mismatch: () => 'Your account is linked to a different HackSpaceLabs account. Ask an administrator to unlink it.',
 };
 
-const safeNext = (n: string | null) => (n && n.startsWith('/') && !n.startsWith('//') ? n : '/');
-
-export function HslMark() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7z" /><path d="M9 8.5v7M15 8.5v7M9 12h6" />
-    </svg>
-  );
+/** The "Sign in with HackSpaceLabs" button: the H mark, above the local form. */
+export function HslButton({ next, prompt }: { next: string; prompt?: 'login' }) {
+  return <a className="auth-google" href={hslStart(next, { prompt })}><Mark className="auth-hsl-mark" /> Sign in with HackSpaceLabs</a>;
 }
 
 function GoogleMark() {
@@ -59,11 +60,13 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const qc = useQueryClient();
   const nav = useNavigate();
-  const providers = useQuery({ queryKey: ['auth-providers'], queryFn: () => api.get<{ google: boolean; hsl?: boolean }>('/api/auth/providers'), staleTime: 300_000 });
+  const providers = useProviders();
   const googleOn = !!providers.data?.google;
   const googleHref = `/api/auth/google/start?${new URLSearchParams({ next, remember: remember ? '1' : '0' })}`;
   const hslOn = !!providers.data?.hsl;
-  const hslHref = `/api/auth/hsl/start?${new URLSearchParams({ next, remember: remember ? '1' : '0' })}`;
+  // With auto-redirect on, the local form is the way in for administrators when HackSpaceLabs is down.
+  const [localWanted, setLocalWanted] = useState(false);
+  const showLocal = !hslOn || !providers.data?.auto_redirect || localWanted || sp.has('local') || googleError === 'hsl_unavailable';
 
   return (
     <div className="auth">
@@ -106,6 +109,20 @@ export default function Login() {
             <p>Sign in to continue managing projects.</p>
           </div>
 
+          {hslOn && (
+            <>
+              {!showLocal && err && <div className="auth-error" role="alert">{err}</div>}
+              <HslButton next={next} />
+              {googleError === 'hsl_no_access' && (
+                <a className="auth-link auth-center" href={hslStart('/', { prompt: 'login' })}>Use a different HackSpaceLabs account</a>
+              )}
+              {showLocal
+                ? <div className="auth-or"><span>or with a Harbor Master password</span></div>
+                : <button type="button" className="auth-link auth-center" onClick={() => setLocalWanted(true)}>Use a local account</button>}
+            </>
+          )}
+
+          {showLocal && <>
           <label className="auth-field">
             <span>Email</span>
             <span className="auth-input">
@@ -145,8 +162,6 @@ export default function Login() {
 
           <div className="auth-or"><span>or</span></div>
 
-          {hslOn && <a className="auth-google" href={hslHref}><HslMark /> Sign in with HackSpaceLabs</a>}
-
           {googleOn ? (
             <a className="auth-google" href={googleHref}><GoogleMark /> Sign in with Google</a>
           ) : (
@@ -156,7 +171,9 @@ export default function Login() {
             </>
           )}
 
-          <p className="auth-foot">{hslOn ? 'New here? Sign in with HackSpaceLabs to get an account. An administrator then adds you to projects.' : 'Accounts are created by your administrator.'}</p>
+          </>}
+
+          <p className="auth-foot">{hslOn ? 'New here? Sign in with HackSpaceLabs. An administrator then adds you to projects.' : 'Accounts are created by your administrator.'}</p>
         </form>
       </main>
     </div>

@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
 import Layout from './components/Layout';
 import { Spinner } from './components/ui';
 import { useAuth } from './lib/auth';
+import { clearAutoRedirectGuard, maybeAutoRedirect, useProviders } from './lib/sso';
 import Account from './pages/Account';
 import AuditPage from './pages/admin/Audit';
 import RolesPage from './pages/admin/Roles';
@@ -13,6 +15,7 @@ import Login from './pages/Login';
 import OAuthConsent from './pages/OAuthConsent';
 import PrintCard from './pages/PrintCard';
 import PrintSheet from './pages/PrintSheet';
+import SignedOut from './pages/SignedOut';
 import Activity from './pages/project/Activity';
 import BoardPage from './pages/project/Board';
 import ProjectLayout from './pages/project/ProjectLayout';
@@ -31,18 +34,31 @@ function AfterLogin() {
   return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : '/'} replace />;
 }
 
+/** Signed out: the signed-out page, HackSpaceLabs (when auto-redirect is on), or the sign-in page. */
+function SignedOutApp() {
+  const loc = useLocation();
+  const [sp] = useSearchParams();
+  const providers = useProviders();
+  if (loc.pathname === '/signed-out') return <SignedOut />;
+  if (providers.isLoading) return <Spinner />;
+  const next = loc.pathname === '/login' ? sp.get('next') ?? '/' : loc.pathname + loc.search;
+  // Stay on the spinner while the browser leaves for HackSpaceLabs.
+  if (maybeAutoRedirect(providers.data, next)) return <Spinner />;
+  if (loc.pathname !== '/login') return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
+  return <Login />;
+}
+
 export default function App() {
   const { me, loading } = useAuth();
-  const loc = useLocation();
+  // A signed-in page load ends the auto-redirect loop guard.
+  useEffect(() => { if (me) clearAutoRedirectGuard(); }, [me]);
   if (loading) return <Spinner />;
-  if (!me) {
-    if (loc.pathname !== '/login') return <Navigate to={`/login?next=${encodeURIComponent(loc.pathname + loc.search)}`} replace />;
-    return <Login />;
-  }
+  if (!me) return <SignedOutApp />;
   if (me.must_change_password) return <ChangePassword forced />;
   return (
     <Routes>
       <Route path="/login" element={<AfterLogin />} />
+      <Route path="/signed-out" element={<Navigate to="/" replace />} />
       <Route path="/oauth/authorize" element={<OAuthConsent />} />
       <Route path="/print/card/:key" element={<PrintCard />} />
       <Route path="/print/p/:project/sheet" element={<PrintSheet />} />

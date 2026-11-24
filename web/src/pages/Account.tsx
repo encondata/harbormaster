@@ -10,6 +10,7 @@ import { Avatar, ErrorBox, Modal, Spinner, useToast } from '../components/ui';
 import { useAuth } from '../lib/auth';
 import { dateTime, shortDate, timeAgo } from '../lib/format';
 import { PasswordForm } from './ChangePassword';
+import { useProviders } from '../lib/sso';
 
 type Profile = {
   id: string; email: string; name: string; kind: string; is_active: boolean; created_at: string; last_login_at: string | null;
@@ -149,6 +150,9 @@ const HSL_NOTES: Record<string, [ok: boolean, text: string]> = {
   hsl_cancelled: [false, 'Linking was cancelled.'],
   hsl_expired: [false, 'That attempt timed out. Please try again.'],
   hsl_failed: [false, "Linking didn't complete. Please try again."],
+  hsl_unavailable: [false, "HackSpaceLabs sign-in can't be reached right now. Please try again later."],
+  hsl_no_access: [false, "That HackSpaceLabs account doesn't have access to Harbor Master. Ask an administrator."],
+  hsl_last_admin: [false, "You're the last administrator who can sign in with a password, so this account can't be linked. Make another administrator first."],
 };
 
 function HslSignIn({ p, onChanged }: { p: Profile; onChanged: () => void }) {
@@ -156,7 +160,7 @@ function HslSignIn({ p, onChanged }: { p: Profile; onChanged: () => void }) {
   const [sp, setSp] = useSearchParams();
   const [err, setErr] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
-  const providers = useQuery({ queryKey: ['auth-providers'], queryFn: () => api.get<{ google: boolean; hsl?: boolean }>('/api/auth/providers'), staleTime: 300_000 });
+  const providers = useProviders();
   const note = HSL_NOTES[sp.get('hsl') ?? ''];
   const dismiss = () => { const n = new URLSearchParams(sp); n.delete('hsl'); setSp(n, { replace: true }); };
   const link = async () => {

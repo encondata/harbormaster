@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { api } from '../api';
 import { useAuth } from '../lib/auth';
+import { signOutAndLeave, useProviders } from '../lib/sso';
 import Mark from './Mark';
 import TopBar from './TopBar';
 import { Avatar } from './ui';
@@ -36,12 +36,13 @@ function SidebarFoot({ me }: { me: NonNullable<ReturnType<typeof useAuth>['me']>
   const qc = useQueryClient();
   const theme = useTheme();
   const dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const providers = useProviders();
   const signOut = async () => {
-    await api.post('/api/auth/logout').catch(() => {});
-    // A full page load drops cached data, in-flight requests and the live-update
-    // connection, so nothing can restore the signed-in view.
+    // A full page load (to Keycloak's sign-out for a HackSpaceLabs session, else the sign-in page)
+    // drops cached data, in-flight requests and the live-update connection, so nothing can restore
+    // the signed-in view.
     qc.clear();
-    window.location.replace('/login');
+    await signOutAndLeave('/', !!providers.data?.hsl);
   };
   const role = me.global_roles.map((r) => r.name).join(', ') || 'Member';
   return (
