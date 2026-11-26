@@ -1,8 +1,7 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { signOutAndLeave, useProviders } from '../lib/sso';
+import { useProviders, useSignOut } from '../lib/sso';
 import Mark from './Mark';
 import { AppSwitcher, UserMenu } from './Suite';
 import TopBar from './TopBar';
@@ -12,15 +11,8 @@ import TopBar from './TopBar';
  * profile for a HackSpaceLabs account, this app's Account page for a local one), dark mode, Sign out.
  */
 function AccountMenu({ me }: { me: NonNullable<ReturnType<typeof useAuth>['me']> }) {
-  const qc = useQueryClient();
   const providers = useProviders();
-  const signOut = async () => {
-    // A full page load (to Keycloak's sign-out for a HackSpaceLabs session, else the sign-in page)
-    // drops cached data, in-flight requests and the live-update connection, so nothing can restore
-    // the signed-in view.
-    qc.clear();
-    await signOutAndLeave('/', !!providers.data?.hsl);
-  };
+  const signOut = useSignOut();
   const role = me.global_roles.map((r) => r.name).join(', ') || 'Member';
   const viaHsl = me.auth_source === 'oidc';
   const portal = providers.data?.portal_url;
@@ -28,7 +20,7 @@ function AccountMenu({ me }: { me: NonNullable<ReturnType<typeof useAuth>['me']>
     <>
       <AppSwitcher apps={providers.data?.apps ?? []} current="harbormaster" />
       <UserMenu name={me.name} detail={viaHsl ? `${role} · HackSpaceLabs` : role}
-        profileUrl={viaHsl && portal ? `${portal}/me` : '/account'} onSignOut={signOut} />
+        profileUrl={viaHsl && portal ? `${portal}/me` : '/account'} onSignOut={() => signOut()} />
     </>
   );
 }

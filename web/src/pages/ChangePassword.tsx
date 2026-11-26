@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api';
 import { ErrorBox, useToast } from '../components/ui';
 import { useAuth } from '../lib/auth';
+import { useSignOut } from '../lib/sso';
 import Mark from '../components/Mark';
 
 export function PasswordForm({ onDone }: { onDone?: () => void }) {
@@ -39,6 +40,7 @@ export function PasswordForm({ onDone }: { onDone?: () => void }) {
 
 export default function ChangePassword({ forced }: { forced?: boolean }) {
   const { refresh, me } = useAuth();
+  const signOut = useSignOut();
   return (
     <main className="hsl-auth">
       <div className="hsl-auth-card">
@@ -48,8 +50,7 @@ export default function ChangePassword({ forced }: { forced?: boolean }) {
         <PasswordForm onDone={refresh} />
         <a href="#" className="hsl-auth-link" onClick={async (e) => {
           e.preventDefault();
-          await api.post('/api/auth/logout').catch(() => {});
-          window.location.href = '/login';
+          await signOut();
         }}>Sign out</a>
       </div>
     </main>

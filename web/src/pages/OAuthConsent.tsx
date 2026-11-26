@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { ErrorBox } from '../components/ui';
 import { useAuth } from '../lib/auth';
-import { signOutAndLeave, useProviders } from '../lib/sso';
+import { useSignOut } from '../lib/sso';
 import Mark from '../components/Mark';
 
 type Info = { client: { name: string; uri: string | null; redirect_host: string }; already_connected: boolean };
@@ -35,10 +35,10 @@ export default function OAuthConsent() {
     }
   };
 
-  const providers = useProviders();
+  const leave = useSignOut();
   // "Not you?": a HackSpaceLabs session must also end at Keycloak, or it would sign the same person
   // straight back in. Either way the consent request is kept for the next sign-in.
-  const signOut = () => signOutAndLeave(window.location.pathname + window.location.search, !!providers.data?.hsl);
+  const signOut = () => leave(window.location.pathname + window.location.search);
 
   return (
     <main className="hsl-auth">

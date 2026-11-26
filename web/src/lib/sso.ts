@@ -1,6 +1,6 @@
 // Sign in with HackSpaceLabs in the web app (HSL Suite plan 5.9): sign-in options, the auto-redirect
 // rule with its loop guard, and where sign-out goes.
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 
 export type Providers = {
@@ -69,6 +69,23 @@ export async function signOutAndLeave(then: string = '/', hslOn = false) {
   if (then !== '/') p.set('next', then);
   if (hslOn) p.set('local', '1');
   window.location.replace(p.size ? `/login?${p}` : '/login');
+}
+
+/**
+ * The one way the web app signs out (user menu, command palette, the consent page's "Not you?", the
+ * forced password change): drops cached data and leaves through signOutAndLeave, so a HackSpaceLabs
+ * session always ends at Keycloak too. `then` is where signing in again should return to.
+ */
+export function useSignOut() {
+  const qc = useQueryClient();
+  useProviders(); // loads the providers; read from the cache when called, so a stale closure still works
+  return async (then: string = '/') => {
+    const hslOn = !!qc.getQueryData<Providers>(['auth-providers'])?.hsl;
+    // A full page load follows, which also drops in-flight requests and the live-update connection,
+    // so nothing can restore the signed-in view.
+    qc.clear();
+    await signOutAndLeave(then, hslOn);
+  };
 }
 
 /** Where the signed-out page's Sign in button returns to (set by signOutAndLeave). */
