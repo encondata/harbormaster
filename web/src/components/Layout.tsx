@@ -7,8 +7,9 @@ import { AppSwitcher, UserMenu } from './Suite';
 import TopBar from './TopBar';
 
 /**
- * The user menu at the right of the top bar (the kit's): your name and role, Profile (the HackSpaceLabs
- * profile for a HackSpaceLabs account, this app's Account page for a local one), dark mode, Sign out.
+ * The user menu at the right of the top bar (the kit's): your photo (if you have one), name and role, Profile
+ * (the HackSpaceLabs profile for a HackSpaceLabs account, this app's Account page for a local one), dark
+ * mode, Sign out. Below 1200px the top bar has no room for the name, so only the avatar shows.
  */
 function AccountMenu({ me }: { me: NonNullable<ReturnType<typeof useAuth>['me']> }) {
   const providers = useProviders();
@@ -16,11 +17,12 @@ function AccountMenu({ me }: { me: NonNullable<ReturnType<typeof useAuth>['me']>
   const role = me.global_roles.map((r) => r.name).join(', ') || 'Member';
   const viaHsl = me.auth_source === 'oidc';
   const portal = providers.data?.portal_url;
+  const photo = me.avatar_updated_at ? `/api/users/${me.id}/avatar?v=${Date.parse(me.avatar_updated_at)}` : undefined;
   return (
     <>
       <AppSwitcher apps={providers.data?.apps ?? []} current="harbormaster" />
-      <UserMenu name={me.name} detail={viaHsl ? `${role} · HackSpaceLabs` : role}
-        profileUrl={viaHsl && portal ? `${portal}/me` : '/account'} onSignOut={() => signOut()} />
+      <UserMenu name={me.name} detail={`${role} · ${viaHsl ? 'HackSpaceLabs' : 'Local account'}`} avatarUrl={photo}
+        profileUrl={viaHsl && portal ? `${portal}/me` : '/account'} compactBelow={1200} onSignOut={() => signOut()} />
     </>
   );
 }
