@@ -6,6 +6,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, type Me } from '../api';
 import { timeAgo } from '../lib/format';
 import { useProject } from '../lib/project';
+import { useSignOut } from '../lib/sso';
 import { applyTheme } from './Layout';
 import { Modal } from './ui';
 
@@ -169,6 +170,7 @@ function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputElement | 
 
 function CommandPalette({ me, onClose }: { me: Me; onClose: () => void }) {
   const nav = useNavigate();
+  const signOut = useSignOut();
   const [text, setText] = useState('');
   const [active, setActive] = useState(0);
   const go = (to: string) => { onClose(); nav(to); };
@@ -191,7 +193,7 @@ function CommandPalette({ me, onClose }: { me: Me; onClose: () => void }) {
     if (can('admin.audit')) c.push({ id: 'audit', group: 'Go to', label: 'Audit log', text: 'audit log history admin', run: () => go('/admin/audit') });
     c.push({ id: 'light', group: 'Actions', label: 'Switch to light mode', text: 'theme light mode', run: () => { applyTheme('light'); onClose(); } });
     c.push({ id: 'dark', group: 'Actions', label: 'Switch to dark mode', text: 'theme dark mode', run: () => { applyTheme('dark'); onClose(); } });
-    c.push({ id: 'signout', group: 'Actions', label: 'Sign out', text: 'sign out log out logout', run: async () => { await api.post('/api/auth/logout').catch(() => {}); window.location.replace('/login'); } });
+    c.push({ id: 'signout', group: 'Actions', label: 'Sign out', text: 'sign out log out logout', run: () => { onClose(); void signOut(); } });
     return c;
   }, [me]);
   const needle = text.trim().toLowerCase();
