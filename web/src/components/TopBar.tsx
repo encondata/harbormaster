@@ -1,12 +1,12 @@
-// Header across the top of the main area: breadcrumbs, global search, and quick tools
-// (help, Claude, notifications, command palette).
+// The top bar (the kit's hsl-topbar): breadcrumbs, global search, quick tools (help, Claude,
+// notifications, command palette), then the app switcher and user menu passed in as children.
 import { useQuery } from '@tanstack/react-query';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, type Me } from '../api';
 import { timeAgo } from '../lib/format';
 import { useProject } from '../lib/project';
-import { applyTheme } from './Layout';
+import { setTheme } from '../lib/theme';
 import { Modal } from './ui';
 
 const I = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
@@ -16,7 +16,6 @@ const Icons = {
   spark: <svg {...I}><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3z" /><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z" /></svg>,
   bell: <svg {...I}><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" /><path d="M10.3 20a2 2 0 0 0 3.4 0" /></svg>,
   cmd: <svg {...I}><path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6z" /></svg>,
-  menu: <svg {...I}><path d="M4 7h16M4 12h16M4 17h16" /></svg>,
 };
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -58,11 +57,11 @@ function Crumbs() {
   } else if (parts[0] === 'account') crumbs.push({ label: 'Account', to: '/account' }, { label: ({ claude: 'Claude', preferences: 'Preferences', notifications: 'Notifications', history: 'History' } as Record<string, string>)[sp.get('tab') ?? ''] ?? 'My profile' });
   else crumbs.push({ label: 'Projects' }, { label: 'All projects' });
   return (
-    <nav className="crumbs" aria-label="Breadcrumb">
+    <nav className="hsl-topbar-title" aria-label="Breadcrumb">
       {crumbs.map((c, i) => (
         <Fragment key={i}>
-          {i > 0 && <span className="crumb-sep" aria-hidden="true">/</span>}
-          {i === crumbs.length - 1 ? <span className="crumb-current" aria-current="page">{c.label}</span> : c.to ? <Link to={c.to}>{c.label}</Link> : <span>{c.label}</span>}
+          {i > 0 && <span className="hsl-topbar-sep" aria-hidden="true">/</span>}
+          {i === crumbs.length - 1 ? <strong aria-current="page">{c.label}</strong> : c.to ? <Link to={c.to}>{c.label}</Link> : <span>{c.label}</span>}
         </Fragment>
       ))}
     </nav>
@@ -183,14 +182,14 @@ function CommandPalette({ me, onClose }: { me: Me; onClose: () => void }) {
     c.push({ id: 'wiki', group: 'Go to', label: 'Wiki', text: 'wiki docs documentation pages design operations', run: () => go('/wiki') });
     c.push({ id: 'wiki-new', group: 'Go to', label: 'New wiki page', text: 'new wiki page write doc', run: () => go('/wiki/new') });
     c.push({ id: 'skills', group: 'Go to', label: 'Skills', text: 'skills claude factory', run: () => go('/skills') });
-    c.push({ id: 'profile', group: 'Go to', label: 'Profile', text: 'profile account password tokens', run: () => go('/account') });
+    c.push({ id: 'profile', group: 'Go to', label: 'Account', text: 'account profile password tokens', run: () => go('/account') });
     c.push({ id: 'claude', group: 'Go to', label: 'Connect Claude', text: 'claude connect mcp token setup', run: () => go('/account?tab=claude') });
     c.push({ id: 'settings', group: 'Go to', label: 'Settings', text: 'settings preferences theme', run: () => go('/account?tab=preferences') });
     if (can('admin.users')) c.push({ id: 'users', group: 'Go to', label: 'Users', text: 'users admin people', run: () => go('/admin/users') });
     if (can('admin.roles')) c.push({ id: 'roles', group: 'Go to', label: 'Roles & permissions', text: 'roles permissions admin', run: () => go('/admin/roles') });
     if (can('admin.audit')) c.push({ id: 'audit', group: 'Go to', label: 'Audit log', text: 'audit log history admin', run: () => go('/admin/audit') });
-    c.push({ id: 'light', group: 'Actions', label: 'Switch to light mode', text: 'theme light mode', run: () => { applyTheme('light'); onClose(); } });
-    c.push({ id: 'dark', group: 'Actions', label: 'Switch to dark mode', text: 'theme dark mode', run: () => { applyTheme('dark'); onClose(); } });
+    c.push({ id: 'light', group: 'Actions', label: 'Switch to light mode', text: 'theme light mode', run: () => { setTheme('light'); onClose(); } });
+    c.push({ id: 'dark', group: 'Actions', label: 'Switch to dark mode', text: 'theme dark mode', run: () => { setTheme('dark'); onClose(); } });
     c.push({ id: 'signout', group: 'Actions', label: 'Sign out', text: 'sign out log out logout', run: async () => { await api.post('/api/auth/logout').catch(() => {}); window.location.replace('/login'); } });
     return c;
   }, [me]);
@@ -288,7 +287,7 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
           <h3>Where things are</h3>
           <div><b>Projects</b> have a Summary, one tab per board, Requests, Updates and Activity. Owners also see Settings.</div>
           <div><b>Cards</b> open in a side panel with comments, attachments and their full history. Drag them between columns to change status.</div>
-          <div><b>Your name</b> at the bottom of the sidebar opens your profile (password, API tokens, settings). Below it are the light/dark switch and Sign out.</div>
+          <div><b>Your name</b> at the top right opens a menu with your profile, the dark mode switch and Sign out. <b>Account</b> at the bottom of the sidebar has your password, API tokens, Claude and preferences.</div>
           <div className="faint">Forgot your password? An administrator can reset it under Users.</div>
         </div>
       </div>
@@ -315,7 +314,7 @@ function ClaudeDialog({ onClose }: { onClose: () => void }) {
 
 // ---------- Header ----------
 
-export default function TopBar({ me, onMenu }: { me: Me; onMenu: () => void }) {
+export default function TopBar({ me, children }: { me: Me; children: ReactNode }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const [dialog, setDialog] = useState<'help' | 'claude' | 'palette' | null>(null);
   useEffect(() => {
@@ -327,17 +326,17 @@ export default function TopBar({ me, onMenu }: { me: Me; onMenu: () => void }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [dialog]);
   return (
-    <header className="appbar">
-      <button className="tool menu-btn" onClick={onMenu} aria-label="Open menu">{Icons.menu}</button>
+    <header className="hsl-topbar hm-topbar">
       <Crumbs />
       <span className="grow" />
       <SearchBox inputRef={searchRef} />
       <div className="tools">
-        <button className="tool" onClick={() => setDialog('help')} aria-label="Help" title="Help">{Icons.help}</button>
+        <button className="tool tool-help" onClick={() => setDialog('help')} aria-label="Help" title="Help">{Icons.help}</button>
         <button className="tool tool-accent" onClick={() => setDialog('claude')} aria-label="Work with Claude" title="Work with Claude">{Icons.spark}</button>
         <Bell />
-        <button className="tool" onClick={() => setDialog('palette')} aria-label={`Command palette (${isMac ? '⌘' : 'Ctrl'} K)`} title={`Go to or do… (${isMac ? '⌘' : 'Ctrl'} K)`}>{Icons.cmd}</button>
+        <button className="tool tool-palette" onClick={() => setDialog('palette')} aria-label={`Command palette (${isMac ? '⌘' : 'Ctrl'} K)`} title={`Go to or do… (${isMac ? '⌘' : 'Ctrl'} K)`}>{Icons.cmd}</button>
       </div>
+      <div className="hsl-topbar-end">{children}</div>
       {dialog === 'help' && <HelpDialog onClose={() => setDialog(null)} />}
       {dialog === 'claude' && <ClaudeDialog onClose={() => setDialog(null)} />}
       {dialog === 'palette' && <CommandPalette me={me} onClose={() => setDialog(null)} />}

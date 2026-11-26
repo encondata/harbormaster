@@ -1,41 +1,18 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { signOutAndLeave, useProviders } from '../lib/sso';
 import Mark from './Mark';
+import { AppSwitcher, UserMenu } from './Suite';
 import TopBar from './TopBar';
-import { Avatar } from './ui';
 
-export type Theme = 'light' | 'dark' | 'system';
-
-export function currentTheme(): Theme {
-  const t = document.documentElement.dataset.theme;
-  return t === 'dark' ? 'dark' : t === 'light' ? 'light' : 'system';
-}
-
-export function applyTheme(t: Theme) {
-  if (t === 'system') delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = t;
-  try { localStorage.setItem('hsl-theme-v2', t); } catch { /* ignore */ }
-  window.dispatchEvent(new Event('hsl:theme'));
-}
-
-export function useTheme(): Theme {
-  const [theme, setTheme] = useState<Theme>(currentTheme);
-  useEffect(() => {
-    const on = () => setTheme(currentTheme());
-    window.addEventListener('hsl:theme', on);
-    return () => window.removeEventListener('hsl:theme', on);
-  }, []);
-  return theme;
-}
-
-/** Sidebar footer, as in Switchyard: your card (opens Profile), a light/dark switch and Sign out. */
-function SidebarFoot({ me }: { me: NonNullable<ReturnType<typeof useAuth>['me']> }) {
+/**
+ * The user menu at the right of the top bar (the kit's): your name and role, Profile (the HackSpaceLabs
+ * profile for a HackSpaceLabs account, this app's Account page for a local one), dark mode, Sign out.
+ */
+function AccountMenu({ me }: { me: NonNullable<ReturnType<typeof useAuth>['me']> }) {
   const qc = useQueryClient();
-  const theme = useTheme();
-  const dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const providers = useProviders();
   const signOut = async () => {
     // A full page load (to Keycloak's sign-out for a HackSpaceLabs session, else the sign-in page)
@@ -45,22 +22,14 @@ function SidebarFoot({ me }: { me: NonNullable<ReturnType<typeof useAuth>['me']>
     await signOutAndLeave('/', !!providers.data?.hsl);
   };
   const role = me.global_roles.map((r) => r.name).join(', ') || 'Member';
+  const viaHsl = me.auth_source === 'oidc';
+  const portal = providers.data?.portal_url;
   return (
-    <div className="sidebar-foot">
-      <NavLink to="/account" end className="user-card" title={`${me.name} (${me.email}): profile, tokens and settings`}>
-        <Avatar name={me.name} userId={me.id} photoAt={me.avatar_updated_at} size={34} />
-        <span className="user-text">
-          <span className="user-name">{me.name}</span>
-          <span className="user-role">{role}</span>
-        </span>
-      </NavLink>
-      <button type="button" className="nav-item" onClick={() => applyTheme(dark ? 'light' : 'dark')} title={dark ? 'Light mode' : 'Dark mode'}>
-        {dark ? NavIcons.sun : NavIcons.moon}<span className="nav-text">{dark ? 'Light mode' : 'Dark mode'}</span>
-      </button>
-      <button type="button" className="nav-item" onClick={signOut} title="Sign out">
-        {NavIcons.signOut}<span className="nav-text">Sign out</span>
-      </button>
-    </div>
+    <>
+      <AppSwitcher apps={providers.data?.apps ?? []} current="harbormaster" />
+      <UserMenu name={me.name} detail={viaHsl ? `${role} · HackSpaceLabs` : role}
+        profileUrl={viaHsl && portal ? `${portal}/me` : '/account'} onSignOut={signOut} />
+    </>
   );
 }
 
@@ -74,9 +43,7 @@ const NavIcons = {
   audit: <svg {...NI}><path d="M8 6h13M8 12h13M8 18h13" /><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01" /></svg>,
   collapse: <svg {...NI}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M16 10l-2 2 2 2" /></svg>,
   expand: <svg {...NI}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M14 10l2 2-2 2" /></svg>,
-  moon: <svg {...NI}><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg>,
-  sun: <svg {...NI}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>,
-  signOut: <svg {...NI}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></svg>,
+  account: <svg {...NI}><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>,
 };
 
 const COLLAPSE_KEY = 'hsl-sidebar-collapsed';
@@ -84,11 +51,8 @@ const readCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) ==
 
 export default function Layout() {
   const { me, can } = useAuth();
-  const loc = useLocation();
-  const [open, setOpen] = useState(false);
-  // Desktop only: the sidebar can shrink to an icon rail. Phones keep the slide-out menu.
+  // Desktop only: the sidebar can shrink to an icon rail. Under 900px the kit shows it as a strip.
   const [collapsed, setCollapsed] = useState(readCollapsed);
-  useEffect(() => setOpen(false), [loc.pathname]);
   useEffect(() => { try { localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0'); } catch { /* storage unavailable */ } }, [collapsed]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -101,50 +65,54 @@ export default function Layout() {
   const projects = me.projects.filter((p) => !p.archived_at);
   const anyAdmin = can('admin.users') || can('admin.roles') || can('admin.audit');
   const toggleLabel = collapsed ? 'Expand sidebar (Ctrl/⌘ \\)' : 'Collapse sidebar (Ctrl/⌘ \\)';
+  const item = 'hsl-nav-item';
   return (
-    <div className={`shell ${collapsed ? 'collapsed' : ''}`}>
-      {open && <div className="scrim" style={{ zIndex: 39 }} onClick={() => setOpen(false)} />}
-      <aside className={`sidebar ${open ? 'open' : ''}`}>
-        <div className="brand">
-          <NavLink to="/" className="brand-link" aria-label="Harbor Master home"><Mark /><span className="brand-name">Harbor Master</span></NavLink>
-          <button type="button" className="rail-toggle" onClick={() => setCollapsed((c) => !c)} aria-label={toggleLabel} title={toggleLabel} aria-expanded={!collapsed}>
-            {collapsed ? NavIcons.expand : NavIcons.collapse}
-          </button>
-        </div>
-        <nav className="nav" aria-label="Main">
-          <div className="nav-group">
-            <div className="nav-label">Workspace</div>
-            <NavLink to="/" end title="All projects">{NavIcons.projects}<span className="nav-text">All projects</span></NavLink>
-            <NavLink to="/wiki" title="Wiki">{NavIcons.wiki}<span className="nav-text">Wiki</span></NavLink>
-            <NavLink to="/skills" title="Skills">{NavIcons.skills}<span className="nav-text">Skills</span></NavLink>
-          </div>
-          <div className="nav-group">
-            <div className="nav-label">Projects</div>
-            {projects.map((p) => (
-              <NavLink key={p.id} to={`/p/${p.key}`} title={`${p.name} (${p.key})`}>
-                <span className="nav-chip" aria-hidden="true">{p.key.slice(0, 2)}</span>
-                <span className="nav-text">{p.name}</span><span className="key">{p.key}</span>
-              </NavLink>
-            ))}
-            {!projects.length && <div className="faint small nav-empty">No projects yet</div>}
-          </div>
-          {anyAdmin && (
-            <div className="nav-group">
-              <div className="nav-label">Administration</div>
-              {can('admin.users') && <NavLink to="/admin/users" title="Users">{NavIcons.users}<span className="nav-text">Users</span></NavLink>}
-              {can('admin.roles') && <NavLink to="/admin/roles" title="Roles & permissions">{NavIcons.roles}<span className="nav-text">Roles &amp; permissions</span></NavLink>}
-              {can('admin.audit') && <NavLink to="/admin/audit" title="Audit log">{NavIcons.audit}<span className="nav-text">Audit log</span></NavLink>}
+    <>
+      <a className="hsl-skip" href="#main">Skip to content</a>
+      <div className={`hsl-shell hm-shell ${collapsed ? 'is-collapsed' : ''}`}>
+        <aside className="hsl-sidebar">
+          <Link to="/" className="hsl-brand" aria-label="Harbor Master home" title="Harbor Master"><Mark size={34} /><span className="hsl-wordmark">Harbor Master</span></Link>
+          <nav className="hsl-nav" aria-label="Main">
+            <div className="hsl-nav-group">
+              <div className="hsl-nav-label">Workspace</div>
+              <NavLink className={item} to="/" end title="All projects">{NavIcons.projects}<span className="nav-text">All projects</span></NavLink>
+              <NavLink className={item} to="/wiki" title="Wiki">{NavIcons.wiki}<span className="nav-text">Wiki</span></NavLink>
+              <NavLink className={item} to="/skills" title="Skills">{NavIcons.skills}<span className="nav-text">Skills</span></NavLink>
             </div>
-          )}
-        </nav>
-        <SidebarFoot me={me} />
-      </aside>
-      <main className="main">
-        <TopBar me={me} onMenu={() => setOpen(true)} />
-        <div className="main-body">
-          <Outlet />
+            <div className="hsl-nav-group">
+              <div className="hsl-nav-label">Projects</div>
+              {projects.map((p) => (
+                <NavLink className={item} key={p.id} to={`/p/${p.key}`} title={`${p.name} (${p.key})`}>
+                  <span className="nav-chip" aria-hidden="true">{p.key.slice(0, 2)}</span>
+                  <span className="nav-text">{p.name}</span><span className="key">{p.key}</span>
+                </NavLink>
+              ))}
+              {!projects.length && <div className="faint small nav-empty">No projects yet</div>}
+            </div>
+            {anyAdmin && (
+              <div className="hsl-nav-group">
+                <div className="hsl-nav-label">Administration</div>
+                {can('admin.users') && <NavLink className={item} to="/admin/users" title="Users">{NavIcons.users}<span className="nav-text">Users</span></NavLink>}
+                {can('admin.roles') && <NavLink className={item} to="/admin/roles" title="Roles & permissions">{NavIcons.roles}<span className="nav-text">Roles &amp; permissions</span></NavLink>}
+                {can('admin.audit') && <NavLink className={item} to="/admin/audit" title="Audit log">{NavIcons.audit}<span className="nav-text">Audit log</span></NavLink>}
+              </div>
+            )}
+          </nav>
+          {/* Harbor Master's own account page (password, API tokens, Claude, preferences) and the rail toggle. */}
+          <div className="hsl-sidebar-foot">
+            <NavLink className={item} to="/account" title="Account: password, API tokens, Claude and preferences">{NavIcons.account}<span className="nav-text">Account</span></NavLink>
+            <button type="button" className={`${item} rail-toggle`} onClick={() => setCollapsed((c) => !c)} aria-label={toggleLabel} title={toggleLabel} aria-expanded={!collapsed}>
+              {collapsed ? NavIcons.expand : NavIcons.collapse}<span className="nav-text">Collapse sidebar</span>
+            </button>
+          </div>
+        </aside>
+        <div className="hsl-main">
+          <TopBar me={me}><AccountMenu me={me} /></TopBar>
+          <main className="hsl-content hm-content" id="main" tabIndex={-1}>
+            <Outlet />
+          </main>
         </div>
-      </main>
-    </div>
+      </div>
+    </>
   );
 }

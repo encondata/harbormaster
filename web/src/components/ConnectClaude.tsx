@@ -1,4 +1,4 @@
-// Profile → Claude: everything needed to point a Claude instance at this Harbor Master.
+// Account → Claude: everything needed to point a Claude instance at this Harbor Master.
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type ReactNode } from 'react';
 import { api, type Project } from '../api';

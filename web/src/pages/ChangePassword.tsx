@@ -40,19 +40,18 @@ export function PasswordForm({ onDone }: { onDone?: () => void }) {
 export default function ChangePassword({ forced }: { forced?: boolean }) {
   const { refresh, me } = useAuth();
   return (
-    <div className="login-wrap">
-      <div className="login card-box">
-        <div className="bd stack">
-          <div className="brand"><Mark className="logo" /> Harbor Master</div>
-          {forced && <div className="warn-box">Welcome{me ? `, ${me.name}` : ''}. Choose a new password before continuing.</div>}
-          <PasswordForm onDone={refresh} />
-          <a href="#" className="small faint" style={{ textAlign: 'center' }} onClick={async (e) => {
-            e.preventDefault();
-            await api.post('/api/auth/logout').catch(() => {});
-            window.location.href = '/login';
-          }}>Sign out</a>
-        </div>
+    <main className="hsl-auth">
+      <div className="hsl-auth-card">
+        <div className="hsl-auth-brand"><Mark size={44} /><span className="hsl-wordmark">Harbor Master</span></div>
+        <h1 className="hsl-auth-title">Choose a new password</h1>
+        {forced && <p className="hsl-auth-alert is-warn">Welcome{me ? `, ${me.name}` : ''}. Choose a new password before continuing.</p>}
+        <PasswordForm onDone={refresh} />
+        <a href="#" className="hsl-auth-link" onClick={async (e) => {
+          e.preventDefault();
+          await api.post('/api/auth/logout').catch(() => {});
+          window.location.href = '/login';
+        }}>Sign out</a>
       </div>
-    </div>
+    </main>
   );
 }

@@ -23,7 +23,7 @@ function HowItWorks() {
     <div className="card-box">
       <div className="hd"><h2>Using these on a machine</h2></div>
       <div className="bd stack-sm small">
-        <div className="muted">Skills install into Claude Code through the Harbor Master connection, so a machine only needs to be signed in (Profile → Claude → Claude Code). Then ask Claude:</div>
+        <div className="muted">Skills install into Claude Code through the Harbor Master connection, so a machine only needs to be signed in (Account → Claude → Claude Code). Then ask Claude:</div>
         <CopyBlock text="Install the factory skill from Harbor Master" label="Prompt" />
         <div className="faint">Claude fetches every file with <code>get_skill</code> and writes it under <code>~/.claude</code>. Ask "update my Harbor Master skills" to bring them all up to date; the factory also checks for a newer version each time it runs. To publish changes you made on a machine: "publish the factory skill to Harbor Master".</div>
       </div>

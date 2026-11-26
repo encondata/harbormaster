@@ -4,18 +4,14 @@ import { afterSignOut, hslStart } from '../lib/sso';
 
 export default function SignedOut() {
   return (
-    <div className="login-wrap">
-      <div className="login card-box">
-        <div className="bd stack">
-          <div className="brand"><Mark className="logo" /> Harbor Master</div>
-          <h2 style={{ margin: 0 }}>You're signed out of HackSpaceLabs</h2>
-          <div className="small muted">You're signed out of Harbor Master and the other HackSpaceLabs apps.</div>
-          <div className="row" style={{ gap: 10 }}>
-            <a className="btn primary" href={hslStart(afterSignOut())}>Sign in</a>
-            <a className="btn ghost" href="/login?local=1">Use a local account</a>
-          </div>
-        </div>
+    <main className="hsl-auth">
+      <div className="hsl-auth-card">
+        <div className="hsl-auth-brand"><Mark size={44} /><span className="hsl-wordmark">Harbor Master</span></div>
+        <h1 className="hsl-auth-title">You're signed out of HackSpaceLabs</h1>
+        <p className="hsl-auth-text">You're signed out of Harbor Master and the other HackSpaceLabs apps.</p>
+        <a className="hsl-auth-button is-primary" href={hslStart(afterSignOut())}>Sign in</a>
+        <a className="hsl-auth-link" href="/login?local=1">Use a local account</a>
       </div>
-    </div>
+    </main>
   );
 }
