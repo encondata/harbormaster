@@ -97,7 +97,8 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
   .rail-toggle { display: none; }
 }
 @media (min-width: 901px) {
-  .hm-shell.is-collapsed { grid-template-columns: 68px minmax(0, 1fr); }
+  /* Through the kit's width token, so its full-height sidebar colour narrows with the rail. */
+  .hm-shell.is-collapsed { --hsl-sidebar-width: 68px; }
   .is-collapsed .hsl-sidebar { padding: 1.1rem 10px 0.75rem; overflow-x: hidden; }
   .is-collapsed .hsl-brand { justify-content: center; padding: 0; }
   .is-collapsed .hsl-wordmark, .is-collapsed .nav-text, .is-collapsed .nav-empty { display: none; }
@@ -163,12 +164,10 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
 @media (max-width: 1050px) {
   .hm-topbar .hsl-topbar-title { flex: 0 1 auto; max-width: none; }
 }
-/* Below 1200px there is no room for everything: the command palette keeps its shortcut (Ctrl/⌘ K)
-   and the user menu shows only the avatar, as the kit does below 900px. */
+/* Below 1200px there is no room for everything: the command palette keeps its shortcut (Ctrl/⌘ K),
+   and the user menu shows only the avatar (compact-below in Layout.tsx). */
 @media (max-width: 1200px) {
   .tools .tool-palette { display: none; }
-  .hm-topbar .hsl-userbtn { padding: 0 4px; }
-  .hm-topbar .hsl-userbtn-name { display: none; }
 }
 .hsl-topbar-title > span:not(.hsl-topbar-sep) { color: var(--muted); }
 .search { position: relative; display: flex; align-items: center; width: min(460px, 40vw); height: 38px; border: 1px solid var(--border); border-radius: var(--radius-ctl); background: var(--surface); padding: 0 10px 0 36px; }
