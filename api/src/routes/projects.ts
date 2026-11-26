@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { requireProject, requireUser } from '../auth.js';
+import { requireProject, requireUser, stillSignedIn } from '../auth.js';
 import { badRequest } from '../errors.js';
 import { bus, type ChangeEvent } from '../events.js';
 import { resolveProject } from '../services/common.js';
@@ -205,7 +205,19 @@ export default async function projectRoutes(app: FastifyInstance) {
       if (e.projectId === id) res.write(`data: ${JSON.stringify(e)}\n\n`);
     };
     bus.on('change', onChange);
-    const ping = setInterval(() => res.write(': ping\n\n'), 25_000);
+    // The stream authenticated once, when it connected. With each ping, check the caller is still
+    // signed in (including the HackSpaceLabs recheck when due), so a stream ends soon after its session.
+    const ping = setInterval(async () => {
+      try {
+        if (!(await stillSignedIn(req))) {
+          res.end();
+          return;
+        }
+      } catch {
+        /* keep the stream on a passing database error */
+      }
+      res.write(': ping\n\n');
+    }, 25_000);
     req.raw.on('close', () => {
       clearInterval(ping);
       bus.off('change', onChange);

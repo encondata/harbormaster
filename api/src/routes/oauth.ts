@@ -12,6 +12,7 @@ import { newApiToken, randomToken, requireUser, sha256 } from '../auth.js';
 import { config } from '../config.js';
 import { one, q, tx } from '../db.js';
 import { badRequest } from '../errors.js';
+import { tokenOwnerAllowed } from '../hsl.js';
 import { parse } from '../validate.js';
 
 const ACCESS_TTL_S = 3600;
@@ -209,8 +210,9 @@ export default async function oauthRoutes(app: FastifyInstance) {
       if (!c || c.client_id !== client.id) return oauthError(reply, 400, 'invalid_grant', 'The authorization code is invalid or expired');
       if (body.redirect_uri && body.redirect_uri !== c.redirect_uri) return oauthError(reply, 400, 'invalid_grant', 'redirect_uri does not match');
       if (createHash('sha256').update(body.code_verifier).digest('base64url') !== c.code_challenge) return oauthError(reply, 400, 'invalid_grant', 'PKCE verification failed');
-      const user = await one<{ name: string; email: string; is_active: boolean }>(`select name, email, is_active from users where id = $1`, [c.user_id]);
+      const user = await one<{ name: string; email: string; is_active: boolean; hsl_sub: string | null }>(`select name, email, is_active, hsl_sub from users where id = $1`, [c.user_id]);
       if (!user?.is_active) return oauthError(reply, 400, 'invalid_grant', 'The account is deactivated');
+      if (!(await tokenOwnerAllowed(user.hsl_sub))) return oauthError(reply, 400, 'invalid_grant', 'The account no longer has access');
       const rowId = await tx(async (db) => {
         // Reconnecting the same app replaces its earlier connection.
         await db.query(`update api_tokens set revoked_at = now() where user_id = $1 and oauth_client_id = $2 and revoked_at is null`, [c.user_id, client.id]);
@@ -231,11 +233,13 @@ export default async function oauthRoutes(app: FastifyInstance) {
 
     if (body.grant_type === 'refresh_token') {
       if (!body.refresh_token) return oauthError(reply, 400, 'invalid_request', 'refresh_token is required');
-      const row = await one<{ id: string }>(
-        `select t.id from api_tokens t join users u on u.id = t.user_id
+      const row = await one<{ id: string; hsl_sub: string | null }>(
+        `select t.id, u.hsl_sub from api_tokens t join users u on u.id = t.user_id
           where t.refresh_hash = $1 and t.oauth_client_id = $2 and t.revoked_at is null and t.refresh_expires_at > now() and u.is_active`,
         [sha256(body.refresh_token), client.id]);
       if (!row) return oauthError(reply, 400, 'invalid_grant', 'The refresh token is invalid, expired or revoked');
+      // Owners tied to HackSpaceLabs must still be enabled there and hold a Harbor Master role (D18).
+      if (!(await tokenOwnerAllowed(row.hsl_sub))) return oauthError(reply, 400, 'invalid_grant', 'The account no longer has access');
       await q(`update oauth_clients set last_used_at = now() where id = $1`, [client.id]);
       return reply.header('cache-control', 'no-store').send(await issueTokens(row.id));
     }

@@ -29,6 +29,7 @@ cp .env.example .env
 | `TRUST_PROXY_HOPS` | `2` (nginx in the web container + the house proxy). `1` if nothing sits in front of `web`. |
 | `MAX_UPLOAD_MB` | Attachment size limit (default 25). |
 | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_ALLOWED_DOMAINS` | Optional "Sign in with Google". See [GOOGLE-SIGN-IN.md](GOOGLE-SIGN-IN.md). |
+| `HSL_OIDC_*`, `HSL_PORTAL_URL`, `HSL_PORTAL_INTERNAL_URL`, `HSL_SUITE_APPS` | Optional "Sign in with HackSpaceLabs". Written by `node scripts/app-env.mjs harbormaster <this .env>` on the HackSpaceLabs server; `PUBLIC_URL` must equal the origin registered there. See [HSL-SIGN-IN.md](HSL-SIGN-IN.md). |
 | `TIMEZONE` | Time zone for scheduled jobs such as the daily sheet export, e.g. `America/Chicago`. |
 
 Keep `.env` out of git (it is ignored) and readable only by the deploy user:

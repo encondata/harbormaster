@@ -10,10 +10,11 @@ import { Avatar, ErrorBox, Modal, Spinner, useToast } from '../components/ui';
 import { useAuth } from '../lib/auth';
 import { dateTime, shortDate, timeAgo } from '../lib/format';
 import { PasswordForm } from './ChangePassword';
+import { useProviders } from '../lib/sso';
 
 type Profile = {
   id: string; email: string; name: string; kind: string; is_active: boolean; created_at: string; last_login_at: string | null;
-  password_changed_at: string | null; avatar_updated_at: string | null; has_password: boolean; google_linked: boolean;
+  password_changed_at: string | null; avatar_updated_at: string | null; has_password: boolean; google_linked: boolean; hsl_linked: boolean; hsl_username: string | null;
   first_name: string; last_name: string; preferred_name: string; job_title: string; contact_email: string; phone: string;
   address_line1: string; address_line2: string; city: string; region: string; postal_code: string; country: string;
   global_roles: string[]; project_roles: string[];
@@ -142,7 +143,47 @@ function EditDetails({ p, onSaved }: { p: Profile; onSaved: () => void }) {
   );
 }
 
-function Security({ p }: { p: Profile }) {
+const HSL_NOTES: Record<string, [ok: boolean, text: string]> = {
+  linked: [true, 'Your HackSpaceLabs account is linked. You can now sign in with it.'],
+  hsl_taken: [false, 'That HackSpaceLabs account is already linked to another Harbor Master user.'],
+  hsl_mismatch: [false, 'A different HackSpaceLabs account is already linked to you. Unlink it first.'],
+  hsl_cancelled: [false, 'Linking was cancelled.'],
+  hsl_expired: [false, 'That attempt timed out. Please try again.'],
+  hsl_failed: [false, "Linking didn't complete. Please try again."],
+  hsl_unavailable: [false, "HackSpaceLabs sign-in can't be reached right now. Please try again later."],
+  hsl_no_access: [false, "That HackSpaceLabs account doesn't have access to Harbor Master. Ask an administrator."],
+  hsl_last_admin: [false, "You're the last administrator who can sign in with a password, so this account can't be linked. Make another administrator first."],
+};
+
+function HslSignIn({ p, onChanged }: { p: Profile; onChanged: () => void }) {
+  const toast = useToast();
+  const [sp, setSp] = useSearchParams();
+  const [err, setErr] = useState<unknown>(null);
+  const [busy, setBusy] = useState(false);
+  const providers = useProviders();
+  const note = HSL_NOTES[sp.get('hsl') ?? ''];
+  const dismiss = () => { const n = new URLSearchParams(sp); n.delete('hsl'); setSp(n, { replace: true }); };
+  const link = async () => {
+    setErr(null); setBusy(true);
+    try { window.location.assign((await api.post<{ url: string }>('/api/auth/hsl/link')).url); } catch (e) { setErr(e); setBusy(false); }
+  };
+  const unlink = async () => {
+    setErr(null); setBusy(true);
+    try { await api.post('/api/auth/hsl/unlink'); onChanged(); toast('HackSpaceLabs account unlinked'); } catch (e) { setErr(e); } finally { setBusy(false); }
+  };
+  if (!p.hsl_linked && !providers.data?.hsl) return <dd><span className="faint">Not set up on this server.</span></dd>;
+  return (
+    <dd>
+      {note && <div className={note[0] ? 'auth-note' : 'auth-error'} role="status" style={{ marginBottom: 8 }}>{note[1]} <button type="button" className="auth-link" onClick={dismiss}>Dismiss</button></div>}
+      {p.hsl_linked
+        ? <><span className="badge ok">Linked</span>{p.hsl_username && <span className="faint"> as {p.hsl_username}</span>} {(p.has_password || p.google_linked) && <button className="btn ghost sm" disabled={busy} onClick={unlink}>Unlink</button>}</>
+        : <><span className="faint">Not linked. </span><button className="btn sm" disabled={busy} onClick={link}>{busy ? 'Opening…' : 'Link HackSpaceLabs account'}</button></>}
+      <ErrorBox error={err} />
+    </dd>
+  );
+}
+
+function Security({ p, onChanged }: { p: Profile; onChanged: () => void }) {
   const [changing, setChanging] = useState(false);
   const { refresh } = useAuth();
   return (
@@ -154,6 +195,8 @@ function Security({ p }: { p: Profile }) {
           <dd>{!p.has_password ? 'Not set' : p.password_changed_at ? `Last changed ${shortDate(p.password_changed_at)}` : 'Set by an administrator'}</dd>
           <dt>Google sign-in</dt>
           <dd>{p.google_linked ? <span className="badge ok">Linked</span> : <span className="faint">Not linked. It links the first time you use Sign in with Google.</span>}</dd>
+          <dt>HackSpaceLabs sign-in</dt>
+          <HslSignIn p={p} onChanged={onChanged} />
           <dt>Two-factor sign-in</dt>
           <dd><span className="badge">Off</span> <span className="faint small">Not available yet.</span></dd>
           <dt>Last sign-in</dt>
@@ -234,7 +277,7 @@ export default function Account() {
           <div className="profile-cols">
             <EditDetails p={p} onSaved={changed} />
             <div className="stack">
-              <Security p={p} />
+              <Security p={p} onChanged={changed} />
               <Tokens base="/api/me/tokens" title="Your API tokens" />
             </div>
           </div>

@@ -1,8 +1,7 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { api } from '../api';
 import { useAuth } from '../lib/auth';
+import { useSignOut } from '../lib/sso';
 import Mark from './Mark';
 import TopBar from './TopBar';
 import { Avatar } from './ui';
@@ -33,16 +32,9 @@ export function useTheme(): Theme {
 
 /** Sidebar footer, as in Switchyard: your card (opens Profile), a light/dark switch and Sign out. */
 function SidebarFoot({ me }: { me: NonNullable<ReturnType<typeof useAuth>['me']> }) {
-  const qc = useQueryClient();
   const theme = useTheme();
   const dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  const signOut = async () => {
-    await api.post('/api/auth/logout').catch(() => {});
-    // A full page load drops cached data, in-flight requests and the live-update
-    // connection, so nothing can restore the signed-in view.
-    qc.clear();
-    window.location.replace('/login');
-  };
+  const signOut = useSignOut();
   const role = me.global_roles.map((r) => r.name).join(', ') || 'Member';
   return (
     <div className="sidebar-foot">
@@ -56,7 +48,7 @@ function SidebarFoot({ me }: { me: NonNullable<ReturnType<typeof useAuth>['me']>
       <button type="button" className="nav-item" onClick={() => applyTheme(dark ? 'light' : 'dark')} title={dark ? 'Light mode' : 'Dark mode'}>
         {dark ? NavIcons.sun : NavIcons.moon}<span className="nav-text">{dark ? 'Light mode' : 'Dark mode'}</span>
       </button>
-      <button type="button" className="nav-item" onClick={signOut} title="Sign out">
+      <button type="button" className="nav-item" onClick={() => signOut()} title="Sign out">
         {NavIcons.signOut}<span className="nav-text">Sign out</span>
       </button>
     </div>

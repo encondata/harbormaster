@@ -4,6 +4,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { config } from './config.js';
 import { one, q, type Db } from './db.js';
 import { forbidden, notFound, unauthorized } from './errors.js';
+import { recheckSession, tokenOwnerAllowed } from './hsl.js';
 import { PROJECT_PERMISSIONS, type GlobalPermission, type ProjectPermission } from './permissions.js';
 
 export const SESSION_COOKIE = 'hsl_session';
@@ -21,6 +22,8 @@ export type Ctx = {
   ip: string | null;
   global: Set<string>;
   projectPerms: Map<string, Set<string>>;
+  /** How a cookie session was signed in: 'oidc' is Sign in with HackSpaceLabs. */
+  authSource?: 'local' | 'oidc';
 };
 
 declare module 'fastify' {
@@ -64,18 +67,30 @@ export async function buildCtx(user: CtxUser, opts: { via: Via; ip: string | nul
 
 const userCols = 'u.id, u.email, u.name, u.kind, u.must_change_password';
 
-const SHORT_SESSION_MS = 12 * 3600_000;
-
-/** remember=false gives a 12-hour session whose cookie ends when the browser closes. */
+/** A password or Google sign-in: 96 hours, or 30 days with "Remember me" (both extended on activity). */
 export async function createSession(userId: string, ip: string | null, ua: string | null, remember = true) {
   const token = randomToken();
-  const expires = new Date(Date.now() + (remember ? config.sessionDays * 86400_000 : SHORT_SESSION_MS));
+  const expires = new Date(Date.now() + (remember ? config.rememberDays * 86400_000 : config.sessionHours * 3600_000));
   await q(`insert into sessions (id, user_id, expires_at, ip, user_agent, remember) values ($1, $2, $3, $4, $5, $6)`, [sha256(token), userId, expires, ip, ua?.slice(0, 300) ?? null, remember]);
   return { token, expires, remember };
 }
 
-export function setSessionCookie(reply: FastifyReply, token: string, expires: Date, remember = true) {
-  reply.setCookie(SESSION_COOKIE, token, { path: '/', httpOnly: true, sameSite: 'lax', secure: config.cookieSecure, ...(remember ? { expires } : {}) });
+/** A HackSpaceLabs sign-in: lasts as long as the Keycloak session (never extended by activity). */
+export async function createHslSession(userId: string, ip: string | null, ua: string | null, seconds: number, idpSid: string | null, sealed: string) {
+  const token = randomToken();
+  const expires = new Date(Date.now() + seconds * 1000);
+  await q(
+    `insert into sessions (id, user_id, expires_at, ip, user_agent, remember, auth_source, idp_sid, idp_tokens, idp_checked_at)
+     values ($1, $2, $3, $4, $5, true, 'oidc', $6, $7, now())`,
+    [sha256(token), userId, expires, ip, ua?.slice(0, 300) ?? null, idpSid, sealed],
+  );
+  return { token, expires };
+}
+
+/** The cookie always carries an expiry: the session's, set once at sign-in. */
+export function setSessionCookie(reply: FastifyReply, token: string, expires: Date) {
+  const maxAge = Math.max(0, Math.floor((expires.getTime() - Date.now()) / 1000));
+  reply.setCookie(SESSION_COOKIE, token, { path: '/', httpOnly: true, sameSite: 'lax', secure: config.cookieSecure, expires, maxAge });
 }
 
 export function clearSessionCookie(reply: FastifyReply) {
@@ -89,42 +104,83 @@ export function newApiToken() {
   return { token, prefix, hash: sha256(token) };
 }
 
-/** Resolve the caller from a bearer token or the session cookie. Sets req.ctx (or null). */
-export async function authenticate(req: FastifyRequest, via: Via = 'web') {
+/**
+ * Resolve the caller from a bearer token or the session cookie. Sets req.ctx (or null). A HackSpaceLabs
+ * session is rechecked with Keycloak when due; if that ends it, the cookie is cleared (given a reply).
+ */
+export async function authenticate(req: FastifyRequest, via: Via = 'web', reply?: FastifyReply) {
   req.ctx = null;
   const ip = req.ip ?? null;
   const authz = req.headers.authorization;
   if (authz?.startsWith('Bearer ')) {
     const token = authz.slice(7).trim();
-    const row = await one<CtxUser & { token_id: string }>(
-      `select ${userCols}, t.id as token_id from api_tokens t join users u on u.id = t.user_id
+    const row = await one<CtxUser & { token_id: string; hsl_sub: string | null }>(
+      `select ${userCols}, u.hsl_sub, t.id as token_id from api_tokens t join users u on u.id = t.user_id
         where t.token_hash = $1 and t.revoked_at is null and (t.expires_at is null or t.expires_at > now()) and u.is_active`,
       [sha256(token)],
     );
     if (!row) throw unauthorized('Invalid or expired API token');
+    // Owners tied to HackSpaceLabs must still be enabled there and hold a Harbor Master role (D18).
+    if (!(await tokenOwnerAllowed(row.hsl_sub))) throw unauthorized('Invalid or expired API token');
     q(`update api_tokens set last_used_at = now() where id = $1 and (last_used_at is null or last_used_at < now() - interval '1 minute')`, [row.token_id]).catch(() => {});
-    const { token_id, ...user } = row;
+    const { token_id, hsl_sub, ...user } = row;
     req.ctx = await buildCtx(user, { via: via === 'web' ? 'api' : via, ip, tokenId: token_id });
     return;
   }
   const cookie = req.cookies?.[SESSION_COOKIE];
   if (!cookie) return;
   const sid = sha256(cookie);
-  const row = await one<CtxUser & { last_seen_at: Date }>(
-    `select ${userCols}, s.last_seen_at from sessions s join users u on u.id = s.user_id
+  const row = await one<CtxUser & { last_seen_at: Date; auth_source: 'local' | 'oidc'; idp_tokens: string | null; idp_checked_at: Date | null; hsl_sub: string | null }>(
+    `select ${userCols}, u.hsl_sub, s.last_seen_at, s.auth_source, s.idp_tokens, s.idp_checked_at from sessions s join users u on u.id = s.user_id
       where s.id = $1 and s.expires_at > now() and u.is_active`,
     [sid],
   );
   if (!row) return;
-  if (Date.now() - new Date(row.last_seen_at).getTime() > 5 * 60_000) {
-    q(`update sessions set last_seen_at = now(), expires_at = now() + case when remember then make_interval(days => $2) else interval '12 hours' end where id = $1`, [sid, config.sessionDays]).catch(() => {});
+  const { last_seen_at, auth_source, idp_tokens, idp_checked_at, hsl_sub, ...user } = row;
+  if (auth_source === 'oidc') {
+    const r = await recheckSession({ sid, userId: user.id, name: user.name, email: user.email, hslSub: hsl_sub, sealed: idp_tokens, checkedAt: idp_checked_at, ip });
+    if (r === 'ended') {
+      if (reply) clearSessionCookie(reply);
+      return;
+    }
+    // Forced steps belong to local accounts: someone signed in through HackSpaceLabs can't change a password here.
+    user.must_change_password = false;
   }
-  const { last_seen_at, ...user } = row;
+  if (Date.now() - new Date(last_seen_at).getTime() > 5 * 60_000) {
+    // Local sessions are extended on activity; HackSpaceLabs sessions end when Keycloak's does.
+    q(
+      `update sessions set last_seen_at = now(),
+              expires_at = case when auth_source = 'oidc' then expires_at
+                                when remember then now() + make_interval(days => $2)
+                                else now() + make_interval(hours => $3) end
+        where id = $1`,
+      [sid, config.rememberDays, config.sessionHours],
+    ).catch(() => {});
+  }
   req.ctx = await buildCtx(user, { via: 'web', ip, sessionId: sid });
+  req.ctx.authSource = auth_source;
   // Cookie-authenticated writes must carry the custom CSRF header (cross-site forms cannot set it).
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.headers[CSRF_HEADER] !== '1') {
     throw forbidden('Missing CSRF header');
   }
+}
+
+/**
+ * For long-lived requests (the live-update stream): is the caller who connected still signed in?
+ * Re-resolves the same cookie or token, which runs the HackSpaceLabs recheck when it is due.
+ */
+export async function stillSignedIn(req: FastifyRequest): Promise<boolean> {
+  const before = req.ctx;
+  if (!before) return false;
+  try {
+    await authenticate(req, before.via === 'mcp' ? 'mcp' : 'web');
+  } catch {
+    req.ctx = before;
+    return false;
+  }
+  const ok = !!req.ctx && req.ctx.user.id === before.user.id;
+  req.ctx = before;
+  return ok;
 }
 
 export function requireUser(req: FastifyRequest): Ctx {

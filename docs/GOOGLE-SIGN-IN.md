@@ -56,4 +56,5 @@ The **Sign in with Google** button on the sign-in page becomes active. Until the
 - **Deactivated users** can't sign in with Google either.
 - Every Google sign-in, refusal, link and unlink is in the audit log.
 
-"Remember me" applies to Google sign-ins too: unticked, the session ends when the browser closes.
+"Remember me" applies to Google sign-ins too: unticked, the session lasts 96 hours; ticked, 30 days.
+An account linked to HackSpaceLabs can't use Google sign-in (see [HSL-SIGN-IN.md](HSL-SIGN-IN.md)).

@@ -43,7 +43,10 @@ async function main() {
     const problem = validatePassword(pw);
     if (problem) throw new Error(problem);
     await tx(async (c) => {
+      // The way back in (D16): a password works only on an account not tied to HackSpaceLabs, so this unlinks it.
+      const linked = await c.query(`update users set hsl_sub = null, hsl_username = null where id = $1 and hsl_sub is not null returning id`, [user.id]);
       await c.query(`update users set password_hash = $2, must_change_password = true, is_active = true, updated_at = now() where id = $1`, [user.id, await hashPassword(pw)]);
+      if (linked.rowCount) await audit(ctx, { action: 'user.hsl_unlinked', entityType: 'user', entityId: user.id, summary: `Unlinked ${user.name}'s HackSpaceLabs account (password reset from the server console)` }, c);
       await c.query(`delete from sessions where user_id = $1`, [user.id]);
       await audit(ctx, { action: 'user.password_reset', entityType: 'user', entityId: user.id, summary: `Reset ${user.name}'s password from the server console` }, c);
     });

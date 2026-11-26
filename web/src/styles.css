@@ -659,6 +659,8 @@ table.t .total td { font-weight: 650; background: var(--surface-2); }
 .auth-google:disabled { opacity: 0.55; cursor: default; }
 .auth-fine { margin: -10px 0 0; font-size: 12px; color: var(--text-3); text-align: center; }
 .auth-foot { margin: 4px 0 0; font-size: 13px; color: var(--text-3); text-align: center; }
+.auth-hsl-mark { width: 22px; height: 21px; flex: none; }
+.auth-center { justify-self: center; text-align: center; }
 @media (max-width: 960px) {
   .auth { grid-template-columns: 1fr; }
   .auth-hero { display: none; }
