@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import Mark from '../components/Mark';
@@ -33,7 +33,7 @@ const GOOGLE_ERRORS: Record<string, (email: string) => string> = {
 
 /** The "Sign in with HackSpaceLabs" button: the H mark, above the local form. */
 export function HslButton({ next, prompt }: { next: string; prompt?: 'login' }) {
-  return <a className="auth-google" href={hslStart(next, { prompt })}><Mark className="auth-hsl-mark" /> Sign in with HackSpaceLabs</a>;
+  return <a className="hsl-auth-button is-sso" href={hslStart(next, { prompt })}><Mark size={20} />Sign in with HackSpaceLabs</a>;
 }
 
 function GoogleMark() {
@@ -68,114 +68,87 @@ export default function Login() {
   const [localWanted, setLocalWanted] = useState(false);
   const showLocal = !hslOn || !providers.data?.auto_redirect || localWanted || sp.has('local') || googleError === 'hsl_unavailable';
 
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password) return setErr('Enter your email and password.');
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.post('/api/auth/login', { email, password, remember });
+      await qc.invalidateQueries({ queryKey: ['me'] });
+      nav(next, { replace: true });
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : 'Sign-in failed');
+      setBusy(false);
+    }
+  };
+
   return (
-    <div className="auth">
-      <section className="auth-hero" aria-label="Harbor Master">
-        <div className="hero-copy">
-          <div className="hero-brand">
-            <Mark className="logo hero-logo" />
-            <h1>Harbor<br />Master</h1>
-          </div>
-          <p className="hero-tagline">Navigate your projects with clarity.</p>
-          <ul className="hero-points">
-            <li><span className="hero-icon"><svg {...ICON}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" /></svg></span>Visual project tracking</li>
-            <li><span className="hero-icon"><svg {...ICON}><circle cx="9" cy="8" r="3" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><circle cx="17" cy="9" r="2.5" /><path d="M16 14.2c2.9.4 5 2.8 5 5.8" /></svg></span>Keep teams aligned</li>
-            <li><span className="hero-icon"><svg {...ICON}><circle cx="12" cy="12" r="9" /><path d="M15.5 8.5l-2 5-5 2 2-5 5-2z" /></svg></span>Turn ideas into progress</li>
-          </ul>
-        </div>
-      </section>
+    <main className="hsl-auth">
+      <div className="hsl-auth-card">
+        <div className="hsl-auth-brand"><Mark size={44} /><span className="hsl-wordmark">Harbor Master</span></div>
+        <h1 className="hsl-auth-title">Sign in</h1>
 
-      <main className="auth-panel">
-        <form className="auth-form" noValidate onSubmit={async (e) => {
-          e.preventDefault();
-          if (!email.trim() || !password) return setErr('Enter your email and password.');
-          setBusy(true);
-          setErr(null);
-          try {
-            await api.post('/api/auth/login', { email, password, remember });
-            await qc.invalidateQueries({ queryKey: ['me'] });
-            nav(next, { replace: true });
-          } catch (e2) {
-            setErr(e2 instanceof Error ? e2.message : 'Sign-in failed');
-            setBusy(false);
-          }
-        }}>
-          <div className="auth-brand">
-            <Mark className="logo" />
-            <span>Harbor Master</span>
-          </div>
-          <div className="auth-head">
-            <h2>Welcome back</h2>
-            <p>Sign in to continue managing projects.</p>
-          </div>
+        {hslOn && (
+          <>
+            {!showLocal && err && <p className="hsl-auth-alert" role="alert">{err}</p>}
+            <HslButton next={next} />
+            {googleError === 'hsl_no_access' && (
+              <a className="hsl-auth-link" href={hslStart('/', { prompt: 'login' })}>Use a different HackSpaceLabs account</a>
+            )}
+            {showLocal
+              ? <div className="hsl-auth-divider">or with a Harbor Master password</div>
+              : <button type="button" className="hsl-auth-link" onClick={() => setLocalWanted(true)}>Use a local account</button>}
+          </>
+        )}
 
-          {hslOn && (
-            <>
-              {!showLocal && err && <div className="auth-error" role="alert">{err}</div>}
-              <HslButton next={next} />
-              {googleError === 'hsl_no_access' && (
-                <a className="auth-link auth-center" href={hslStart('/', { prompt: 'login' })}>Use a different HackSpaceLabs account</a>
-              )}
-              {showLocal
-                ? <div className="auth-or"><span>or with a Harbor Master password</span></div>
-                : <button type="button" className="auth-link auth-center" onClick={() => setLocalWanted(true)}>Use a local account</button>}
-            </>
-          )}
+        {showLocal && <>
+          <form className="hsl-auth-form" noValidate onSubmit={submit}>
+            <label className="hsl-auth-field">
+              Email
+              <input id="login-email" className="hsl-auth-input" type="email" autoComplete="username" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required />
+            </label>
 
-          {showLocal && <>
-          <label className="auth-field">
-            <span>Email</span>
-            <span className="auth-input">
-              <svg {...ICON}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>
-              <input id="login-email" type="email" autoComplete="username" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required />
-            </span>
-          </label>
+            <label className="hsl-auth-field">
+              Password
+              <span className="hm-password">
+                <input id="login-password" className="hsl-auth-input" type={show ? 'text' : 'password'} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <button type="button" className="hm-eye" onClick={() => setShow((v) => !v)} aria-label={show ? 'Hide password' : 'Show password'} aria-pressed={show}>
+                  {show
+                    ? <svg {...ICON}><path d="M3 3l18 18" /><path d="M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 4.5 10 6-.4.6-1.3 1.8-2.6 3M6.6 6.6C4.3 8 2.6 10.3 2 12c1 1.5 5 6 10 6 1.6 0 3.1-.4 4.4-1.1" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></svg>
+                    : <svg {...ICON}><path d="M2 12c1-1.5 5-6 10-6s9 4.5 10 6c-1 1.5-5 6-10 6S3 13.5 2 12z" /><circle cx="12" cy="12" r="3" /></svg>}
+                </button>
+              </span>
+            </label>
 
-          <label className="auth-field">
-            <span>Password</span>
-            <span className="auth-input">
-              <svg {...ICON}><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
-              <input id="login-password" type={show ? 'text' : 'password'} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-              <button type="button" className="auth-eye" onClick={() => setShow((v) => !v)} aria-label={show ? 'Hide password' : 'Show password'} aria-pressed={show}>
-                {show
-                  ? <svg {...ICON}><path d="M3 3l18 18" /><path d="M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 4.5 10 6-.4.6-1.3 1.8-2.6 3M6.6 6.6C4.3 8 2.6 10.3 2 12c1 1.5 5 6 10 6 1.6 0 3.1-.4 4.4-1.1" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></svg>
-                  : <svg {...ICON}><path d="M2 12c1-1.5 5-6 10-6s9 4.5 10 6c-1 1.5-5 6-10 6S3 13.5 2 12z" /><circle cx="12" cy="12" r="3" /></svg>}
-              </button>
-            </span>
-          </label>
-
-          <div className="auth-row">
-            <label className="auth-check"><input id="login-remember" type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Remember me</label>
-            <button type="button" className="auth-link" aria-expanded={forgot} onClick={() => setForgot((v) => !v)}>Forgot password?</button>
-          </div>
-          {forgot && (
-            <div className="auth-note" role="status">
-              Harbor Master doesn't send reset emails. Ask an administrator to reset your password: they'll give you a temporary one to sign in with, then you choose your own.
+            <div className="hm-auth-row">
+              <label className="hsl-auth-check"><input id="login-remember" type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Remember me</label>
+              <button type="button" className="hsl-auth-link" aria-expanded={forgot} onClick={() => setForgot((v) => !v)}>Forgot password?</button>
             </div>
-          )}
-          {err && <div className="auth-error" role="alert">{err}</div>}
+            {forgot && (
+              <p className="hsl-auth-note hm-auth-box" role="status">
+                Harbor Master doesn't send reset emails. Ask an administrator to reset your password: they'll give you a temporary one to sign in with, then you choose your own.
+              </p>
+            )}
+            {err && <p className="hsl-auth-alert" role="alert">{err}</p>}
 
-          <button className="auth-submit" disabled={busy}>
-            {busy ? 'Signing in…' : 'Sign in'}
-            {!busy && <svg {...ICON}><path d="M5 12h14M13 6l6 6-6 6" /></svg>}
-          </button>
+            <button className="hsl-auth-button is-primary" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+          </form>
 
-          <div className="auth-or"><span>or</span></div>
+          <div className="hsl-auth-divider">or</div>
 
           {googleOn ? (
-            <a className="auth-google" href={googleHref}><GoogleMark /> Sign in with Google</a>
+            <a className="hsl-auth-button" href={googleHref}><GoogleMark /> Sign in with Google</a>
           ) : (
             <>
-              <button type="button" className="auth-google" disabled aria-describedby="google-off"><GoogleMark /> Sign in with Google</button>
-              <p id="google-off" className="auth-fine">Google sign-in isn't set up on this server yet.</p>
+              <button type="button" className="hsl-auth-button" disabled aria-describedby="google-off"><GoogleMark /> Sign in with Google</button>
+              <p id="google-off" className="hsl-auth-note">Google sign-in isn't set up on this server yet.</p>
             </>
           )}
+        </>}
 
-          </>}
-
-          <p className="auth-foot">{hslOn ? 'New here? Sign in with HackSpaceLabs. An administrator then adds you to projects.' : 'Accounts are created by your administrator.'}</p>
-        </form>
-      </main>
-    </div>
+        <p className="hsl-auth-note">{hslOn ? 'New here? Sign in with HackSpaceLabs. An administrator then adds you to projects.' : 'Accounts are created by your administrator.'}</p>
+      </div>
+    </main>
   );
 }

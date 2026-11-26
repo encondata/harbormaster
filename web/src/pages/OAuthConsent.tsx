@@ -41,36 +41,32 @@ export default function OAuthConsent() {
   const signOut = () => leave(window.location.pathname + window.location.search);
 
   return (
-    <div className="login-wrap">
-      <div className="login card-box">
-        <div className="bd stack">
-          <div className="brand"><Mark className="logo" /> Harbor Master</div>
-          {info.isLoading && <div className="faint">Checking the request…</div>}
-          {info.error && (
-            <>
-              <h2 style={{ margin: 0 }}>Can't connect this app</h2>
-              <ErrorBox error={info.error} />
-            </>
-          )}
-          {info.data && (
-            <>
-              <h2 style={{ margin: 0 }}>Allow <b>{info.data.client.name}</b> to use Harbor Master?</h2>
-              <div className="small muted stack-sm">
-                <div>It will be able to read and update the projects you can access, with your permissions. Its changes show in history under your name.</div>
-                <div>After you allow it, you'll go back to <b className="mono">{info.data.client.redirect_host}</b>. Only continue if you started this from that app.</div>
-                {info.data.already_connected && <div>This replaces its existing connection.</div>}
-                <div className="faint">You can disconnect it any time from Profile → Claude.</div>
-              </div>
-              <ErrorBox error={err} />
-              <div className="row" style={{ gap: 10 }}>
-                <button className="btn primary" disabled={!!busy} onClick={() => decide('allow')}>{busy === 'allow' ? 'Connecting…' : 'Allow'}</button>
-                <button className="btn" disabled={!!busy} onClick={() => decide('deny')}>Cancel</button>
-              </div>
-            </>
-          )}
-          <div className="small faint">Signed in as {me?.name} ({me?.email}). <a href="#" onClick={(e) => { e.preventDefault(); signOut(); }}>Not you?</a></div>
-        </div>
+    <main className="hsl-auth">
+      <div className="hsl-auth-card">
+        <div className="hsl-auth-brand"><Mark size={44} /><span className="hsl-wordmark">Harbor Master</span></div>
+        {info.isLoading && <p className="hsl-auth-text">Checking the request…</p>}
+        {info.error && (
+          <>
+            <h1 className="hsl-auth-title">Can't connect this app</h1>
+            <ErrorBox error={info.error} />
+          </>
+        )}
+        {info.data && (
+          <>
+            <h1 className="hsl-auth-title">Allow <b>{info.data.client.name}</b> to use Harbor Master?</h1>
+            <div className="small muted stack-sm">
+              <div>It will be able to read and update the projects you can access, with your permissions. Its changes show in history under your name.</div>
+              <div>After you allow it, you'll go back to <b className="mono">{info.data.client.redirect_host}</b>. Only continue if you started this from that app.</div>
+              {info.data.already_connected && <div>This replaces its existing connection.</div>}
+              <div>You can disconnect it any time from Account → Claude.</div>
+            </div>
+            <ErrorBox error={err} />
+            <button className="hsl-auth-button is-primary" disabled={!!busy} onClick={() => decide('allow')}>{busy === 'allow' ? 'Connecting…' : 'Allow'}</button>
+            <button className="hsl-auth-button" disabled={!!busy} onClick={() => decide('deny')}>Cancel</button>
+          </>
+        )}
+        <p className="hsl-auth-note">Signed in as {me?.name} ({me?.email}). <a href="#" onClick={(e) => { e.preventDefault(); signOut(); }}>Not you?</a></p>
       </div>
-    </div>
+    </main>
   );
 }

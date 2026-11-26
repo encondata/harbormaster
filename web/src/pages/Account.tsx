@@ -4,13 +4,13 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import AuditList from '../components/AuditList';
 import ConnectClaude from '../components/ConnectClaude';
-import { applyTheme, useTheme, type Theme } from '../components/Layout';
 import Tokens from '../components/Tokens';
 import { Avatar, ErrorBox, Modal, Spinner, useToast } from '../components/ui';
 import { useAuth } from '../lib/auth';
 import { dateTime, shortDate, timeAgo } from '../lib/format';
 import { PasswordForm } from './ChangePassword';
 import { useProviders } from '../lib/sso';
+import { setTheme, useTheme, type Theme } from '../lib/theme';
 
 type Profile = {
   id: string; email: string; name: string; kind: string; is_active: boolean; created_at: string; last_login_at: string | null;
@@ -219,11 +219,11 @@ function Preferences() {
       <div className="hd"><h2>Appearance</h2></div>
       <div className="bd stack-sm">
         <div className="seg" role="radiogroup" aria-label="Theme" style={{ justifySelf: 'start' }}>
-          {([['light', 'Light'], ['dark', 'Dark'], ['system', 'Match my system']] as [Theme, string][]).map(([v, label]) => (
-            <button key={v} role="radio" aria-checked={theme === v} className={theme === v ? 'on' : ''} onClick={() => applyTheme(v)}>{label}</button>
+          {([['light', 'Light'], ['dark', 'Dark']] as [Theme, string][]).map(([v, label]) => (
+            <button key={v} role="radio" aria-checked={theme === v} className={theme === v ? 'on' : ''} onClick={() => setTheme(v)}>{label}</button>
           ))}
         </div>
-        <div className="faint small">Saved in this browser.</div>
+        <div className="faint small">Saved in this browser. The menu under your name at the top right switches it too.</div>
       </div>
     </div>
   );

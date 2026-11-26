@@ -12,7 +12,7 @@ owner adds the connector once under Organization settings → Connectors.)
 
 This uses OAuth with Harbor Master as the provider: the connector registers itself, you approve
 it, and it gets its own access token (renewed hourly, connection valid for 90 days from last use).
-It acts as you, with your permissions, and shows under Profile → Claude → *Your connections and
+It acts as you, with your permissions, and shows under Account → Claude → *Your connections and
 tokens*, where you can disconnect it. Approvals and connections are in the audit log.
 
 ## Claude Code
@@ -22,12 +22,12 @@ claude mcp add --transport http --scope user harbormaster https://harbormaster.h
 ```
 
 Then run `/mcp` in Claude Code, choose **harbormaster** → **Authenticate**, and allow it in the
-browser. On a machine without a browser, use a token instead (Profile → Claude → Claude Code →
+browser. On a machine without a browser, use a token instead (Account → Claude → Claude Code →
 *Use a token instead*), which adds `--header "Authorization: Bearer hsl_…"` to the command.
 
-## Profile → Claude
+## Account → Claude
 
-Open your name (bottom of the sidebar) → **Profile** → **Claude** tab, or the sparkle button in
+Open **Account** (bottom of the sidebar) → **Claude** tab, or the sparkle button in
 the header. It has the steps above for each app, and writes the instructions to paste into a
 Claude Project or a repository's `CLAUDE.md`, using that project's real boards and column names.
 
@@ -138,7 +138,7 @@ Complete, Retired…), so moving a card updates the parity score.
 
 ## Instructions for a project's repository
 
-Profile → Claude generates this for any project with its real boards and columns. For reference,
+Account → Claude generates this for any project with its real boards and columns. For reference,
 the shape is:
 
 ```markdown

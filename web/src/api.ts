@@ -58,6 +58,8 @@ export type ProjectListItem = { id: string; key: string; name: string; descripti
 
 export type Me = {
   id: string; email: string; name: string; kind: string; must_change_password: boolean; last_login_at: string | null; avatar_updated_at: string | null;
+  /** How this session signed in: 'oidc' is HackSpaceLabs. */
+  auth_source: 'local' | 'oidc' | 'token';
   global_roles: { id: string; name: string }[]; global_permissions: string[]; projects: ProjectListItem[];
 };
 

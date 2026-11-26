@@ -8,16 +8,22 @@ import { ToastProvider } from './components/ui';
 import { AuthProvider } from './lib/auth';
 import '@fontsource-variable/inter';
 import '@fontsource/outfit/700.css';
+// The HSL Suite kit: shared tokens, frame, sign-in card, app switcher, user menu and theme.
+import './hsl-ui/tokens.css';
+import './hsl-ui/shell.css';
+import './hsl-ui/auth.css';
+import './hsl-ui/suite.js';
 import './styles.css';
 
-// Light is the default; dark and "match system" are opt-in from the sidebar or Account page.
-let theme = 'light';
+// Light is the default; dark is opt-in from the user menu, the Account page or the command palette.
+// Harbor Master's own setting (hsl-theme-v2) moves to the suite's key once. The older hsl-theme value
+// predates the light default and is dropped, not migrated.
+window.HSLSuite.theme.migrate(['hsl-theme-v2']);
 try {
-  theme = localStorage.getItem('hsl-theme-v2') ?? 'light';
+  localStorage.removeItem('hsl-theme');
 } catch {
   /* storage unavailable */
 }
-if (theme === 'dark' || theme === 'light') document.documentElement.dataset.theme = theme;
 
 const client = new QueryClient({
   defaultOptions: {
