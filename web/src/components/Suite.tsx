@@ -9,7 +9,11 @@ export function AppSwitcher({ apps, current }: { apps: SuiteApp[]; current: stri
   return <hsl-app-switcher apps={JSON.stringify(apps)} current={current} />;
 }
 
-export function UserMenu({ name, detail, profileUrl, onSignOut }: { name: string; detail: string; profileUrl: string; onSignOut: () => void }) {
+/** avatarUrl: a photo for the avatar (initials when it is left out or fails to load). compactBelow: the
+ *  window width in px at or below which only the avatar shows. */
+export function UserMenu({ name, detail, avatarUrl, profileUrl, compactBelow, onSignOut }: {
+  name: string; detail: string; avatarUrl?: string; profileUrl: string; compactBelow?: number; onSignOut: () => void;
+}) {
   const ref = useRef<HTMLElement>(null);
   const signOut = useRef(onSignOut);
   useEffect(() => { signOut.current = onSignOut; });
@@ -19,5 +23,6 @@ export function UserMenu({ name, detail, profileUrl, onSignOut }: { name: string
     el?.addEventListener('hsl-signout', on);
     return () => el?.removeEventListener('hsl-signout', on);
   }, []);
-  return <hsl-user-menu ref={ref} name={name} detail={detail} profile-url={profileUrl} />;
+  return <hsl-user-menu ref={ref} name={name} detail={detail} avatar-url={avatarUrl} profile-url={profileUrl}
+    compact-below={compactBelow} />;
 }
