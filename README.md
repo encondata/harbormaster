@@ -116,6 +116,10 @@ local or test stack.
 See [docs/DEPLOY.md](docs/DEPLOY.md) for the house server: environment, reverse proxy
 settings (including Server-Sent Events), backups and upgrades.
 
+Sign in with HackSpaceLabs (the HackSpaceLabs Keycloak, shared with the other HSL Suite apps) is
+optional and off until its settings are present: see [docs/HSL-SIGN-IN.md](docs/HSL-SIGN-IN.md) for
+the settings, roles, sessions, API tokens and the way back in when Keycloak is down.
+
 ## First steps after deploying
 
 1. Sign in as the admin from `.env` and change nothing else there; the admin password in
