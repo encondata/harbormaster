@@ -158,12 +158,15 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
 /* The top bar is the kit's (hsl-topbar); breadcrumbs use its hsl-topbar-title. Between the title and
    the app switcher sit Harbor Master's search box and tools. */
 /* The search box gives up its width (down to 180px) well before the breadcrumbs do. */
-.hm-topbar .hsl-topbar-title { flex: 0 1 auto; overflow: hidden; }
-.hm-topbar .search { flex: 0 12 400px; width: auto; min-width: 180px; }
-/* Below 1100px there is no room for everything: the command palette keeps its shortcut (Ctrl/⌘ K)
+.hm-topbar .hsl-topbar-title { flex: none; max-width: 40%; overflow: hidden; }
+.hm-topbar .search { flex: 0 1 400px; width: auto; min-width: 180px; }
+@media (max-width: 1050px) {
+  .hm-topbar .hsl-topbar-title { flex: 0 1 auto; max-width: none; }
+}
+/* Below 1200px there is no room for everything: the command palette keeps its shortcut (Ctrl/⌘ K)
    and the user menu shows only the avatar, as the kit does below 900px. */
-@media (max-width: 1100px) {
-  .tool-palette { display: none; }
+@media (max-width: 1200px) {
+  .tools .tool-palette { display: none; }
   .hm-topbar .hsl-userbtn { padding: 0 4px; }
   .hm-topbar .hsl-userbtn-name { display: none; }
 }
@@ -209,7 +212,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
 /* Phones: keep the search box usable; Help is about keyboard shortcuts anyway. */
 @media (max-width: 480px) {
   .hm-topbar { gap: 6px; }
-  .tool-help { display: none; }
+  .tools .tool-help { display: none; }
 }
 .page { flex: 1; overflow: auto; padding: 24px 32px 40px; }
 /* Cap the content, not the scrolling area, so the scrollbar stays at the window edge. */
